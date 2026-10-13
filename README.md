@@ -32,6 +32,27 @@ También funciona como "Static Site" en Render, o abriendo `index.html` con dobl
 
 **Importante:** no suba al repositorio Excel reales de la empresa ni PDF del VUR. El `.gitignore` ya los bloquea.
 
+## Lo principal: confirmar el FMI con la cédula catastral
+
+Cada ficha empieza con un recuadro que dice si la matrícula inmobiliaria (FMI) y la cédula catastral del Excel son del mismo predio. Hay cuatro resultados posibles:
+
+- **Confirmado.** Al menos una prueba lo confirma y ninguna lo contradice.
+- **No coincide.** Alguna fuente asocia ese FMI a otro predio, o ese predio a otro FMI. La página lo avisa como alerta.
+- **Revisar.** Hay algo parecido pero no igual; por ejemplo, el mismo terreno con otra unidad de propiedad horizontal.
+- **Sin confirmar.** No hay en línea una prueba que ligue la matrícula con el predio. La página dice qué falta y dónde confirmarlo a mano.
+
+Las pruebas que usa, cada una con su enlace para verificarla:
+
+1. **Geoportal del gestor que publica la matrícula junto al predio.**
+   - Barranquilla: todos sus predios.
+   - Medellín: solo los inmuebles del municipio.
+2. **VUR.** La referencia catastral que el registro tiene para ese FMI, comparada con la cédula catastral del Excel.
+   - Cuando el VUR trae el número nuevo (30 dígitos) y el Excel el anterior (20), la página usa como puente el catastro que publica los dos números del mismo predio: la base del IGAC, Barranquilla o el Área Metropolitana de Bucaramanga.
+3. **NUPRE.** El mismo código en el VUR y en el catastro. Lo publican Barranquilla y Medellín.
+4. **Existencia.** Que la cédula catastral del Excel exista en el catastro. Esto apoya, pero no liga la matrícula.
+
+La mayoría de los gestores (Antioquia, Cundinamarca, Valle de Aburrá, Cali, Cúcuta, etc.) no publican la matrícula en un servicio consultable. Para ellos la ficha muestra **"Confirmar a mano"** con el enlace a su geoportal. La confirmación automática sale entonces del VUR.
+
 ## Cómo se usa
 
 La página tiene dos pestañas: **Un predio** y **Varios predios**.
@@ -83,7 +104,7 @@ La página primero averigua quién es el gestor catastral del municipio. Para es
 | Fuente | Origen | Se busca por | Qué trae | Cobertura |
 |---|---|---|---|---|
 | Catastro Bogotá – IDECA | Gestor | Número predial, CHIP, cédula catastral | Dirección, barrio, áreas, destino, uso, polígono | Bogotá |
-| Catastro Medellín – GeoMedellín | Gestor | Número predial (21 dígitos) | CBML, área y polígono del lote | Medellín |
+| Catastro Medellín – GeoMedellín | Gestor | Número predial (30), NUPRE; matrícula de inmuebles del municipio | Dirección, destino, estrato, NUPRE, CBML, área y polígono del lote | Medellín |
 | Catastro Barranquilla – datos abiertos | Gestor | **Matrícula inmobiliaria (círculo 040)**, número predial nuevo o anterior | Estado y apertura del folio, áreas catastral y registral, destino, estrato, NUPRE, dirección, polígono | Barranquilla |
 | Área Metropolitana de Bucaramanga | Gestor | Número predial nuevo o anterior | Polígono del terreno | Bucaramanga, Girón, Piedecuesta |
 | Cali – información histórica de predios (datos abiertos) | Gestor | Número predial | Áreas, avalúo, usos (vigencia 2022). **No probado** | Cali |
@@ -124,6 +145,7 @@ js/arcgis.js        consultas a servicios ArcGIS (fetch y JSONP)
 js/gestores.js      directorio de gestores catastrales del IGAC
 js/geoportales.js   SINIC, base pública IGAC, Bogotá, Medellín, Barranquilla, AMB, Cali
 js/contraste.js     comparación campo a campo
+js/confirmacion.js  confirmación del FMI con la cédula catastral
 js/almacen.js       lo que se guarda en el navegador
 js/investigar.js    arma la ficha de una matrícula
 js/reporte.js       Excel de salida

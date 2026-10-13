@@ -44,14 +44,14 @@
         visor: "https://mapas.bogota.gov.co/",
       },
       "05001": {
-        conector: "capas",
+        conector: "medellin",
         nombre: "Catastro Medellín – GeoMedellín",
         origen: "Gestor catastral",
         pagina: "Catastro Medellín · GeoMedellín (medellin.gov.co/servidormapas)",
-        capas: ["https://www.medellin.gov.co/servidormapas/rest/services/vivienda_ciudad_terri/VC_Catastro_VCT/MapServer/7"],
-        campo_codigo: "mz_igac",
-        digitos: 21,
-        campos: { codigo_local: "cbml", area_terreno_m2: "area_lote", tipo_lote: "tipo_lote" },
+        circulos: ["001", "01N"],
+        predio: "https://www.medellin.gov.co/servidormapas/rest/services/ServiciosCatastro/ConsultaOperadorCatastral_geo/MapServer/6",
+        bienes: "https://www.medellin.gov.co/servidormapas/rest/services/ServiciosCatastro/ConsultaOperadorCatastral_geo/MapServer/2",
+        lote: "https://www.medellin.gov.co/servidormapas/rest/services/vivienda_ciudad_terri/VC_Catastro_VCT/MapServer/7",
         visor: "https://www.medellin.gov.co/geomedellin/",
       },
       "08001": {
@@ -105,6 +105,12 @@
         no_probado: true,
         visor: "https://datos.cali.gov.co/dataset/informacion-historica-de-predios-de-santiago-de-cali",
       },
+    },
+
+    // Geoportales (visores) de gestores sin servicio consultable, para confirmar a mano
+    visores_gestor: {
+      "54001": "https://ide.cucuta.gov.co/geoportal/",
+      "76520": "https://idep.palmira.gov.co/portal/apps/webappviewer/index.html?id=e0e42455dcb14780a62a3a1aafdde9c8",
     },
 
     enlaces: {

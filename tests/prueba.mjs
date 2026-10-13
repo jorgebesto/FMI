@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SCRIPTS = ["utils", "vur", "xlsx", "excel", "config", "arcgis", "gestores", "geoportales", "contraste", "almacen", "investigar", "reporte", "ejemplo"];
+const SCRIPTS = ["utils", "vur", "xlsx", "excel", "config", "arcgis", "gestores", "geoportales", "contraste", "confirmacion", "almacen", "investigar", "reporte", "ejemplo"];
 
 const llamadas = [];
 function respuesta(url) {
@@ -40,8 +40,15 @@ function respuesta(url) {
   }
   if (u.pathname.includes("catastro/lote/MapServer/0/query"))
     return f([{ attributes: { LOTCODIGO: "0081020003" }, geometry: { rings: [[[-74.07, 4.61], [-74.069, 4.61], [-74.069, 4.611], [-74.07, 4.61]]] } }]);
+  if (u.pathname.includes("ConsultaOperadorCatastral_geo/MapServer/6/query")) {
+    if (where.includes("050010100071300670088000000000"))
+      return f([{ attributes: { cbml: "07130670088", numero_predial: "050010100071300670088000000000", direccion: "CL  10   40  20", destinacion: "Residencial",
+        estrato: 3, codigo_homologado: "MED0001AAAA", latitud: 6.24, longitud: -75.59 } }]);
+    return f([]);
+  }
+  if (u.pathname.includes("ConsultaOperadorCatastral_geo/MapServer/2/query")) return f([]);
   if (u.pathname.includes("VC_Catastro_VCT/MapServer/7/query")) {
-    if (where.includes("050010100071300670088"))
+    if (where.includes("050010100071300670088") || where.includes("07130670088"))
       return f([{ attributes: { mz_igac: "050010100071300670088", cbml: "07130670088", area_lote: 98, tipo_lote: "Edificacion" },
         geometry: { rings: [[[-75.59, 6.24], [-75.589, 6.24], [-75.589, 6.241], [-75.59, 6.24]]] } }]);
     return f([]);
@@ -180,6 +187,34 @@ assert.match(f6.catastro.fuentes[0].mensaje, /predial anterior/);
 assert.ok(f6.catastro.datos.construcciones.includes("3 hab."));
 assert.equal(f6.contraste.find((x) => x.campo === "Predial anterior / cédula catastral").estado, "ok");
 
+// --- Confirmación FMI ↔ cédula catastral
+assert.equal(f1.confirmacion.veredicto, "sin_confirmar"); // formatos distintos y el gestor (Antioquia) no publica la matrícula
+assert.match(f1.confirmacion.recomendacion, /GOBERNACION DE ANTIOQUIA/);
+assert.equal(f5.confirmacion.veredicto, "confirmado");          // Barranquilla publica la matrícula del predio
+assert.equal(f6.confirmacion.veredicto, "sin_confirmar");       // IGAC no publica la matrícula; la cédula sí existe
+assert.ok(f6.confirmacion.pruebas.some((x) => x.resultado === "apoya"));
+const vurBaq = IP.vur.leerTexto(IP.EJEMPLO_VUR.replace("008-2077", "040-30938").replace("051720001000000260020000000000", "080010001000000000048000000000")
+  .replace("Nupre: ABR0001DOBD", "Nupre: AFT0024ERWB").replace("Municipio: CHIGORODO", "Municipio: BARRANQUILLA").replace("000000000", "444"))[0];
+const f7 = await IP.investigarMatricula("040-30938", { vur: vurBaq, excel: ex });
+assert.equal(f7.confirmacion.veredicto, "confirmado");
+assert.equal(f7.confirmacion.pruebas.filter((x) => x.resultado === "confirma").length, 2, JSON.stringify(f7.confirmacion.pruebas)); // matrícula del gestor + NUPRE
+const vurMal = IP.vur.leerTexto(IP.EJEMPLO_VUR.replace("008-2077", "040-99999").replace("051720001000000260020000000000", "080010001000000000048000000000")
+  .replace("Municipio: CHIGORODO", "Municipio: BARRANQUILLA").replace("000000000", "555"))[0];
+const f8 = await IP.investigarMatricula("040-99999", { vur: vurMal, excel: ex });
+assert.equal(f8.confirmacion.veredicto, "no_coincide");          // el gestor asocia ese predio a la matrícula 30938
+assert.equal(f8.alertas[0], "El FMI no coincide con la cédula catastral");
+// Excel con cédula 30 igual a la del VUR
+const regIgual = { cedula_catastral: "051720001000000260020000000000" };
+assert.equal(IP.confirmarFMI({ matricula: "008-2077", registro: regIgual, vur: v, catastro: f1.catastro }).veredicto, "confirmado");
+assert.equal(IP.confirmarFMI({ matricula: "008-2077", registro: { cedula_catastral: "051720001000000990020000000000" }, vur: v, catastro: f1.catastro }).veredicto, "no_coincide");
+// Puente: Excel con predial anterior y VUR con el nuevo; la base del IGAC dice que son el mismo predio
+const vurBaranoa = IP.vur.leerTexto(IP.EJEMPLO_VUR.replace("008-2077", "041-5555").replace("051720001000000260020000000000", "080780001000000000063000000000")
+  .replace("Referencia Catastral Anterior: 1555", "Referencia Catastral Anterior:").replace("000000000", "666"))[0];
+const f9 = await IP.investigarMatricula("041-5555", { vur: vurBaranoa, excel: ex });
+assert.equal(f9.confirmacion.veredicto, "confirmado", JSON.stringify(f9.confirmacion.pruebas));
+assert.match(f9.confirmacion.pruebas[0].texto, /mismo predio/);
+for (const f of [f1, f5, f6, f7, f8, f9]) console.log("CONF", f.matricula, f.confirmacion.veredicto, "|", f.confirmacion.pruebas.map((x) => x.resultado + ": " + x.texto).join(" || "));
+
 // Historial
 const h = await IP.almacen.historial();
 assert.equal(h.map((x) => x.matricula).sort().join(","), "001-1555,008-2077");
@@ -189,7 +224,7 @@ const blob = IP.generarReporte([f1, f2, f3, f5, f6], ex);
 const salida = path.join(RAIZ, "tests", "salida_prueba.xlsx");
 fs.writeFileSync(salida, Buffer.from(await blob.arrayBuffer()));
 const relectura = await IP.xlsx.leer(await blob.arrayBuffer());
-assert.equal(relectura.hojas.map((x) => x.nombre).join("|"), "Resumen|Contraste|Fuentes|Propietarios|Salvedades y alertas|VUR completo|Catastro|Excel enriquecido");
+assert.equal(relectura.hojas.map((x) => x.nombre).join("|"), "Resumen|Confirmación FMI|Contraste|Fuentes|Propietarios|Salvedades y alertas|VUR completo|Catastro|Excel enriquecido");
 assert.equal(relectura.hojas[0].filas[1][0], "008-2077");
 
 for (const f of [f1, f2, f3, f5, f6]) {

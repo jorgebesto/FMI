@@ -25,8 +25,10 @@
       catastro = await IP.consultarCatastro(vur, reg, clave);
     }
     const contraste = IP.contrastar(vur, reg, catastro);
+    const confirmacion = IP.confirmarFMI({ matricula: clave, registro: reg, vur, catastro });
 
     const alertas = vur ? IP.vur.alertas(vur) : ["No hay consulta del VUR guardada para esta matrícula"];
+    if (confirmacion.veredicto === "no_coincide") alertas.unshift("El FMI no coincide con la cédula catastral");
     if (excel && !resExcel.registros.length) alertas.push("Excel: " + resExcel.como);
     else if (resExcel.registros.length > 1) alertas.push(`Excel: ${resExcel.registros.length} filas con esta matrícula`);
     else if (/revise|sin círculo/.test(resExcel.como)) alertas.push("Excel: encontrada " + resExcel.como);
@@ -54,7 +56,7 @@
       donde.push({ fuente: f.fuente, origen: f.origen, estado: f.estado, detalle: f.pagina + (f.mensaje ? " — " + f.mensaje : ""), enlaces: [...(f.enlaces || []), ...(f.visor ? [{ texto: "Abrir el visor", url: f.visor }] : [])], no_probado: f.no_probado });
 
     return {
-      donde,
+      donde, confirmacion,
       matricula: clave, vur, historialVur, excel: resExcel, registro: reg, catastro,
       contraste: contraste.filas, resumen: contraste.resumen, alertas, fecha: U.ahora(),
     };

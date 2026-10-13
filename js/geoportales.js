@@ -162,6 +162,7 @@
     const num = U.numeroDeMatricula(claves.matricula);
     const porMatricula = /^\d+$/.test(num) && (!circ || circ === cfg.circulo);
     if (porMatricula) cond.push(`matricula_inmobiliaria = ${Number(num)}`);
+    if (claves.nupre) cond.push(`nupre = ${s(claves.nupre)}`);
     if (!cond.length) return resultado("sin_datos", cfg, { mensaje: `Hace falta el número predial o una matrícula del círculo ${cfg.circulo}.` });
     const params = { where: cond.join(" OR ") };
     const js = await A().query(cfg.predio, params);
@@ -201,7 +202,67 @@
     return r;
   }
 
-  /* ---------------- Capas ArcGIS genéricas (Medellín, AMB, ...) ---------------- */
+  /* ---------------- Medellín (predio por unidad, NUPRE, bienes con matrícula) ---------------- */
+  async function medellin(cfg, claves) {
+    const s = A().sql;
+    const cond = [];
+    if (claves.predial30) cond.push(`numero_predial = ${s(claves.predial30)}`);
+    if (claves.nupre) cond.push(`codigo_homologado = ${s(claves.nupre)}`);
+    const circ = U.circuloDeMatricula(claves.matricula), num = U.numeroDeMatricula(claves.matricula);
+    const matriculaMedellin = /^\d+$/.test(num) && cfg.circulos.includes(circ);
+    if (!cond.length && !matriculaMedellin) return resultado("sin_datos", cfg, { mensaje: "Hace falta el número predial de 30 dígitos o el NUPRE." });
+    const enlaces = [];
+    let a = null, cbml = "";
+    if (cond.length) {
+      const params = { where: cond.join(" OR ") };
+      enlaces.push(consultaHtml("Ver la búsqueda en Catastro Medellín", cfg.predio, params));
+      const js = await A().query(cfg.predio, params);
+      const feats = js.features || [];
+      a = (feats.find((x) => x.attributes.numero_predial === claves.predial30) || feats[0] || {}).attributes || null;
+      if (a) cbml = U.limpiar(a.cbml);
+    }
+    // Inmuebles del municipio: tienen la matrícula inmobiliaria
+    let bien = null;
+    try {
+      const cb = [];
+      if (matriculaMedellin) cb.push(`matricula = ${Number(num)}`);
+      if (cbml) cb.push(`cbml = ${s(cbml)}`);
+      if (cb.length) {
+        const pb = { where: cb.join(" OR "), outFields: "cbml,matricula,activo_fijo,tipo" };
+        const jb = await A().query(cfg.bienes, pb);
+        bien = (((jb.features || [])[0]) || {}).attributes || null;
+        if (bien) enlaces.push(consultaHtml("Ver el inmueble municipal (con matrícula)", cfg.bienes, pb));
+        if (bien && !cbml) cbml = U.limpiar(bien.cbml);
+      }
+    } catch (e) { /* complemento */ }
+    if (!a && !bien) return resultado("no_encontrado", cfg, { mensaje: "Catastro Medellín no devolvió el predio.", enlaces });
+    const datos = {};
+    if (a) Object.assign(datos, {
+      numero_predial: U.limpiar(a.numero_predial), direccion: U.limpiar(a.direccion).replace(/\s+/g, " "),
+      destino_economico: U.limpiar(a.destinacion), estrato: U.limpiar(a.estrato), nupre: U.limpiar(a.codigo_homologado),
+      codigo_local: U.limpiar(a.cbml), nombre_predio: U.limpiar(a.nombre_predio),
+    });
+    if (bien) {
+      const circMed = cfg.circulos.includes(circ) ? circ : "";
+      datos.matricula_inmobiliaria = bien.matricula ? (circMed ? `${circMed}-${Number(bien.matricula)}` : String(Number(bien.matricula))) : "";
+      datos.codigo_local = datos.codigo_local || cbml;
+    }
+    const r = resultado("ok", cfg, { datos, crudo: { ...(a || {}), ...(bien ? { bien_municipal: bien } : {}) }, enlaces,
+      mensaje: (a ? "Predio encontrado." : "Encontrado solo como inmueble del municipio.") + (bien ? " Es un inmueble del municipio y trae matrícula." : "") });
+    if (a && a.latitud) { r.lat = a.latitud; r.lon = a.longitud; }
+    if (cbml || claves.predial30) {
+      try {
+        const mz = claves.predial30 ? claves.predial30.slice(0, 21) : "";
+        const pl = { where: cbml ? `cbml = ${s(cbml)}` : `mz_igac = ${s(mz)}`, outFields: "cbml,area_lote" };
+        const l = await A().query(cfg.lote, { ...pl, returnGeometry: "true", outSR: 4326 });
+        const f = (l.features || [])[0];
+        if (f) { ponerGeometria(r, f.geometry); datos.area_terreno_m2 = f.attributes.area_lote; enlaces.push(consultaHtml("Ver el lote en Catastro Medellín", cfg.lote, pl)); }
+      } catch (e) { /* polígono opcional */ }
+    }
+    return r;
+  }
+
+  /* ---------------- Capas ArcGIS genéricas (AMB, ...) ---------------- */
   async function capas(cfg, claves) {
     const s = A().sql;
     const cond = [];
@@ -254,7 +315,7 @@
 
   /* ---------------- Enrutador ---------------- */
   IP.clavesBusqueda = function (vur, excel, matricula) {
-    const claves = { predial30: "", predial20: "", chips: [], cedulas: [], matricula: "" };
+    const claves = { predial30: "", predial20: "", chips: [], cedulas: [], matricula: "", nupre: U.limpiar(vur && vur.nupre).toUpperCase() };
     claves.matricula = (vur && vur.matricula_normalizada) || (excel && excel.fmi ? U.normalizarMatricula(excel.fmi, excel.circulo) : "") || U.normalizarMatricula(matricula);
     const cands = [vur && vur.referencia_catastral, vur && vur.referencia_catastral_anterior, vur && vur.cedula_catastral,
                    excel && excel.cedula_catastral, excel && excel.cedula_vur];
@@ -270,6 +331,9 @@
     }
     return claves;
   };
+
+  const enlaceBusqueda = (gestor, municipio) =>
+    "https://www.google.com/search?q=" + encodeURIComponent(`geoportal catastral ${gestor || ""} ${municipio || ""} consulta predio`);
 
   async function protegido(fn, cfg) {
     try { return await fn(); }
@@ -295,11 +359,19 @@
 
     const local = C.por_municipio[dane];
     if (local) {
-      const fn = { bogota, barranquilla, capas, ckan }[local.conector];
+      const fn = { bogota, barranquilla, medellin, capas, ckan }[local.conector];
       const r = fn ? await protegido(() => fn(local, claves), local) : resultado("error", local, { mensaje: "Conector desconocido" });
       fuentes.push(r);
       if (U.tipoCodigo(r.datos.numero_predial) === "nacional30" && !claves.predial30) claves.predial30 = r.datos.numero_predial;
       if (U.tipoCodigo(r.datos.numero_predial_anterior) === "anterior20" && !claves.predial20) claves.predial20 = r.datos.numero_predial_anterior;
+    }
+    if (!local && gestor.Gestor && !esIgac) {
+      const visor = (C.visores_gestor || {})[dane] || "";
+      fuentes.push(resultado("manual", { nombre: "Geoportal de " + gestor.Gestor, origen: "Gestor catastral",
+        pagina: visor ? "Geoportal del gestor (sin servicio consultable)" : "El gestor no publica un servicio consultable", visor }, {
+        mensaje: "Este gestor no publica en internet un servicio que se pueda consultar automáticamente. Confirme el FMI con la cédula catastral en su geoportal o pidiéndole el certificado catastral.",
+        enlaces: [visor ? enlace("Abrir el geoportal del gestor", visor) : enlace("Buscar el geoportal de " + gestor.Gestor, enlaceBusqueda(gestor.Gestor, gestor.mpio_cnmbr))],
+      }));
     }
     if (!local && (esIgac || !gestor.Gestor) && (claves.predial30 || claves.predial20)) {
       const r = await protegido(() => igacPublico(C.igac_publico, claves), C.igac_publico);

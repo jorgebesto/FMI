@@ -148,3 +148,26 @@ table.tabla-lote tr.sub td { border-top: 0; padding-top: 0; }
 button.mini { white-space: nowrap; }
 table.tabla-lote td { overflow-wrap: normal; }
 table.tabla-lote td.cod { overflow-wrap: anywhere; min-width: 120px; }
+
+/* Confirmación FMI ↔ cédula catastral */
+.confirmacion { margin: 14px 18px 0; border-radius: 10px; padding: 12px 14px; border: 1px solid var(--linea); background: var(--gris-f); }
+.confirmacion.c-confirmado { background: var(--ok-f); border-color: #b9e2c9; }
+.confirmacion.c-no_coincide { background: var(--dif-f); border-color: #f0b8b4; }
+.confirmacion.c-revisar { background: var(--rev-f); border-color: #f1d98c; }
+.conf-tit { display: flex; gap: 10px; align-items: center; }
+.conf-tit b { font-size: 15.5px; }
+.conf-icono { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #fff; font-weight: 700; font-size: 16px; flex: none; }
+.c-confirmado .conf-icono { color: var(--ok); } .c-no_coincide .conf-icono { color: var(--dif); } .c-revisar .conf-icono { color: var(--rev); } .c-sin_confirmar .conf-icono { color: var(--suave); }
+ul.pruebas { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
+ul.pruebas li { display: flex; gap: 8px; padding: 3px 0; }
+.p-ic { width: 14px; flex: none; font-weight: 700; text-align: center; }
+.p-confirma .p-ic { color: var(--ok); } .p-contradice .p-ic { color: var(--dif); } .p-revisar .p-ic { color: var(--rev); } .p-apoya .p-ic, .p-informa .p-ic, .p-sin_dato .p-ic { color: var(--suave); }
+.conf-rec { margin: 8px 0 0; font-size: 13px; color: var(--tinta); }
+.ic-confirmado { background: var(--ok-f); color: var(--ok); } .ic-no_coincide { background: var(--dif-f); color: var(--dif); }
+.ic-revisar { background: var(--rev-f); color: var(--rev); } .ic-sin_confirmar { background: var(--gris-f); color: var(--suave); }
+#vistaVarios .contenido { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); max-width: 1760px; }
+@media (max-width: 1000px) { #vistaVarios .contenido { grid-template-columns: minmax(0, 1fr); } }
+table.tabla-lote td .nota { display: block; margin-top: 3px; }
+table.tabla-lote td.col-fuentes { min-width: 230px; }
+table.tabla-lote td.cod { font-size: 11px; }
+table.tabla-lote .insignia { white-space: nowrap; display: inline-block; }

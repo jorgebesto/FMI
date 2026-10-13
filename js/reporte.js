@@ -4,10 +4,17 @@
   const U = IP.util;
   const VEREDICTO = { ok: "Sin diferencias", revisar: "Revisar", diferente: "Con diferencias", sin_dato: "Sin contraste" };
   const ESTADO = { ok: "Coincide", revisar: "Revisar", diferente: "Diferente", sin_dato: "—" };
-  const CAT = { ok: "Encontrado", no_encontrado: "No encontrado", sin_datos: "Sin código para buscar", error: "Error", omitido: "No consultado" };
+  const CAT = { ok: "Encontrado", no_encontrado: "No encontrado", sin_datos: "Sin código para buscar", error: "Error", omitido: "No consultado", manual: "Confirmar a mano" };
   IP.textos = { VEREDICTO, ESTADO, CAT };
   // Lista corta de las fuentes catastrales donde sí apareció el predio
   IP.encontradoEn = (f) => (f.catastro.fuentes || []).filter((x) => x.estado === "ok").map((x) => `${x.fuente} (${x.origen === "IGAC" ? "IGAC" : "gestor"})`).join("; ");
+
+  const ESTILO_CONF = { confirmado: "ok", no_coincide: "diferente", revisar: "revisar", sin_confirmar: "sin_dato" };
+  function celdasConfirmacion(f) {
+    const S = IP.xlsx.ESTILO, c = f.confirmacion || { veredicto: "sin_confirmar", pruebas: [] };
+    const como = c.pruebas.filter((p) => ["confirma", "contradice", "revisar"].includes(p.resultado)).map((p) => `${p.fuente}: ${p.texto}`).join("\n") || c.recomendacion || "";
+    return [{ v: IP.TEXTO_CONFIRMACION[c.veredicto], s: S[ESTILO_CONF[c.veredicto]] }, c.cedula_excel || "", como];
+  }
 
   IP.generarReporte = function (fichas, excel) {
     const S = IP.xlsx.ESTILO;
@@ -15,17 +22,33 @@
 
     hojas.push({
       nombre: "Resumen",
-      columnas: ["Matrícula", "Departamento", "Municipio", "Encargado", "Resultado", "Diferencias", "Por revisar", "Alertas",
+      columnas: ["Matrícula", "Departamento", "Municipio", "Encargado", "FMI ↔ cédula catastral", "Cédula catastral (Excel)", "Cómo se confirmó",
+        "Resultado contraste", "Diferencias", "Por revisar", "Alertas",
         "Predial nacional", "Predial anterior", "Propietarios (VUR)", "Estado folio", "Área VUR (m²)", "Área catastro (m²)",
         "Destino (catastro)", "Gestor catastral", "Catastro", "Encontrado en", "No. consulta VUR", "Fecha consulta VUR", "Fecha investigación"],
-      anchos: { Alertas: 45, "Propietarios (VUR)": 45 },
+      anchos: { Alertas: 45, "Propietarios (VUR)": 45, "Cómo se confirmó": 70 },
       filas: fichas.map((f) => {
         const v = f.vur || {}, r = f.registro || {}, c = f.catastro, d = c.datos || {};
         return [f.matricula, v.departamento || r.departamento || d.departamento, v.municipio || r.municipio || d.municipio, r.encargado,
+          ...celdasConfirmacion(f),
           { v: VEREDICTO[f.resumen.veredicto], s: S[f.resumen.veredicto] }, f.resumen.diferencias, f.resumen.revisar, f.alertas.join("; "),
           v.referencia_catastral || d.numero_predial || c.claves.predial30, v.referencia_catastral_anterior, v.propietarios_texto, v.estado_folio,
           v.area_terreno_m2 ?? "", d.area_terreno_m2 ?? "", d.destino_economico, c.gestor, CAT[c.estado] || c.estado,
           IP.encontradoEn(f), v.no_consulta, v.fecha_consulta, f.fecha];
+      }),
+    });
+
+    hojas.push({
+      nombre: "Confirmación FMI",
+      columnas: ["Matrícula", "Cédula catastral (Excel)", "Resultado", "Fuente", "Prueba", "Prueba (detalle)", "Enlace para confirmar"],
+      anchos: { "Prueba (detalle)": 90, "Enlace para confirmar": 60 },
+      filas: fichas.flatMap((f) => {
+        const c = f.confirmacion || { veredicto: "sin_confirmar", pruebas: [], recomendacion: "" };
+        const res = { v: IP.TEXTO_CONFIRMACION[c.veredicto], s: S[ESTILO_CONF[c.veredicto]] };
+        const NOM = { confirma: "Confirma", contradice: "Contradice", revisar: "Revisar", apoya: "Apoya", informa: "Informa", sin_dato: "Sin dato" };
+        const filas = c.pruebas.map((p) => [f.matricula, c.cedula_excel || "", res, p.fuente, NOM[p.resultado] || p.resultado, p.texto, p.enlace]);
+        if (c.recomendacion) filas.push([f.matricula, c.cedula_excel || "", res, "Recomendación", "", c.recomendacion, ""]);
+        return filas.length ? filas : [[f.matricula, c.cedula_excel || "", res, "", "", "Sin pruebas", ""]];
       }),
     });
 
@@ -99,13 +122,13 @@
           nombre: "Excel enriquecido",
           columnas: [...excel.columnasOriginales.map((c, i) => c || `Columna ${i + 1}`), "MATRÍCULA VUR", "PREDIAL NACIONAL",
             "PREDIAL ANTERIOR VUR", "PROPIETARIOS VUR", "ESTADO FOLIO VUR", "ÁREA VUR (m²)", "ÁREA CATASTRO (m²)", "GESTOR CATASTRAL",
-            "RESULTADO CONTRASTE", "ALERTAS", "FECHA INVESTIGACIÓN"],
+            "RESULTADO CONTRASTE", "FMI ↔ CÉDULA CATASTRAL", "ALERTAS", "FECHA INVESTIGACIÓN"],
           filas: con.flatMap((f) => f.excel.registros.map((r) => {
             const v = f.vur || {}, d = f.catastro.datos || {};
             return [...excel.columnasOriginales.map((_, j) => U.limpiar(excel.filas[r._fila][j])),
               v.matricula_normalizada, v.referencia_catastral || d.numero_predial, v.referencia_catastral_anterior, v.propietarios_texto,
               v.estado_folio, v.area_terreno_m2 ?? "", d.area_terreno_m2 ?? "", f.catastro.gestor,
-              { v: VEREDICTO[f.resumen.veredicto], s: S[f.resumen.veredicto] }, f.alertas.join("; "), f.fecha];
+              { v: VEREDICTO[f.resumen.veredicto], s: S[f.resumen.veredicto] }, celdasConfirmacion(f)[0], f.alertas.join("; "), f.fecha];
           })),
         });
       }

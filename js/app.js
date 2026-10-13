@@ -257,6 +257,21 @@
       </tbody></table>`;
   }
 
+  const ICONO_CONF = { confirmado: "✓", no_coincide: "✗", revisar: "⚠", sin_confirmar: "?" };
+  const ICONO_PRUEBA = { confirma: "✓", contradice: "✗", revisar: "⚠", apoya: "·", informa: "·", sin_dato: "–" };
+  function bloqueConfirmacion(f) {
+    const c = f.confirmacion;
+    if (!c) return "";
+    return `<section class="confirmacion c-${c.veredicto}">
+      <div class="conf-tit"><span class="conf-icono">${ICONO_CONF[c.veredicto]}</span>
+        <div><b>${esc(c.titulo)}</b><div class="nota">FMI ${esc(f.matricula)}${c.cedula_excel ? ` · cédula catastral del Excel ${esc(c.cedula_excel)}` : ""}</div></div></div>
+      ${c.pruebas.length ? `<ul class="pruebas">${c.pruebas.map((p) => `<li class="p-${p.resultado}"><span class="p-ic">${ICONO_PRUEBA[p.resultado] || "·"}</span>
+        <span><b>${esc(p.fuente)}:</b> ${esc(p.texto)}${p.enlace ? ` ${a(p.enlace, "confirmar")}` : ""}</span></li>`).join("")}</ul>` : ""}
+      ${c.recomendacion ? `<p class="conf-rec">${esc(c.recomendacion)}</p>` : ""}
+    </section>`;
+  }
+  const insigniaConf = (f) => (f.confirmacion ? `<span class="insignia ic-${f.confirmacion.veredicto}">${ICONO_CONF[f.confirmacion.veredicto]} ${esc(IP.TEXTO_CONFIRMACION[f.confirmacion.veredicto])}</span>` : "");
+
   function tarjeta(f, i) {
     const v = f.vur || {}, c = f.catastro, gi = c.gestor_info || {}, r = f.registro || {};
     const predial = v.referencia_catastral || c.claves.predial30 || c.datos.numero_predial || "";
@@ -285,12 +300,13 @@
           <div class="lugar">${esc(lugar || "Sin ubicación")}${v.vereda ? ` · ${esc(v.vereda)}` : ""}${r.encargado ? ` · Encargado: ${esc(r.encargado)}` : ""}${r.estado ? ` · Estado: ${esc(r.estado)}` : ""}</div>
           ${predial ? `<div class="lugar cod">Predial: ${esc(predial)} <button type="button" class="mini" data-copiar="${esc(predial)}">Copiar</button></div>` : ""}
         </div>
-        <div class="acciones">${insignia(f)}
+        <div class="acciones">${insigniaConf(f)} ${insignia(f)}
           <button type="button" class="mini" data-actualizar="${esc(f.matricula)}">Actualizar</button>
           <button type="button" class="mini" data-cerrar="${esc(f.matricula)}">Cerrar</button>
         </div>
       </div>
       ${f.alertas.length ? `<div class="alertas">${f.alertas.map((x) => `<span class="alerta">${esc(x)}</span>`).join("")}</div>` : ""}
+      ${bloqueConfirmacion(f)}
       <div class="cuerpo">
         <div>
           <h3>Contraste</h3>
@@ -410,18 +426,18 @@
     const v = f.vur || {}, r = f.registro || {}, d = f.catastro.datos || {};
     const encontrados = (f.catastro.fuentes || []).map((s) => {
       const conf = ((s.enlaces || [])[0] || {}).url;
-      const txt = `${s.estado === "ok" ? "✓" : "✗"} ${s.fuente}`;
+      const corto = s.fuente.split(" – ")[0].replace(/^Base catastral pública del IGAC.*/, "Base pública IGAC");
+      const txt = `${s.estado === "ok" ? "✓" : s.estado === "manual" ? "→" : "✗"} ${corto}${s.estado === "manual" ? " (confirmar a mano)" : ""}`;
       return `<span class="fuente-lote ${s.estado === "ok" ? "si" : "no"}">${conf ? `<a href="${esc(conf)}" target="_blank" rel="noopener" title="Confirmar la búsqueda">${esc(txt)}</a>` : esc(txt)} ${chipOrigen(s.origen)}</span>`;
     }).join("");
-    const aV = Number(v.area_terreno_m2) || null, aC = Number(d.area_terreno_m2) || null;
     return `<tr><td>${i + 1}</td><td class="cod">${esc(f.matricula)}</td>
-      <td>${esc(v.municipio || r.municipio || d.municipio || "")}</td><td>${esc(r.encargado || "")}</td>
-      <td>${insignia(f)}</td>
+      <td>${esc(v.municipio || r.municipio || d.municipio || "")}${r.encargado ? `<span class="nota">${esc(r.encargado)}</span>` : ""}</td>
+      <td>${insigniaConf(f)}${f.confirmacion && f.confirmacion.cedula_excel ? `<span class="nota">cédula ${esc(f.confirmacion.cedula_excel)}</span>` : ""}</td>
+      <td><span class="insignia i-${f.resumen.veredicto}">${T.VEREDICTO[f.resumen.veredicto]}</span></td>
       <td class="cod">${esc(v.referencia_catastral || d.numero_predial || "")}</td>
-      <td>${encontrados || '<span class="nota">—</span>'}${f.excel.registros.length ? `<span class="fuente-lote si">✓ Excel fila ${esc(f.excel.registros[0]._numero)}</span>` : ""}${f.vur ? `<span class="fuente-lote si">✓ VUR ${esc(v.fecha_consulta || "")}</span>` : ""}</td>
-      <td>${aV || aC ? `${esc(U.formatoArea(aV) || "—")}<br><span class="nota">catastro: ${esc(U.formatoArea(aC) || "—")}</span>` : ""}</td>
+      <td class="col-fuentes">${encontrados || '<span class="nota">—</span>'}${f.excel.registros.length ? `<span class="fuente-lote si">✓ Excel fila ${esc(f.excel.registros[0]._numero)}</span>` : ""}${f.vur ? `<span class="fuente-lote si">✓ VUR ${esc(v.fecha_consulta || "")}</span>` : ""}</td>
       <td><button type="button" class="mini" data-ver="${esc(f.matricula)}">Ver ficha</button></td></tr>
-      ${f.alertas.length ? `<tr class="sub"><td></td><td colspan="8">${f.alertas.map((x) => `<span class="alerta">${esc(x)}</span>`).join(" ")}</td></tr>` : ""}`;
+      ${f.alertas.length ? `<tr class="sub"><td></td><td colspan="7">${f.alertas.map((x) => `<span class="alerta">${esc(x)}</span>`).join(" ")}</td></tr>` : ""}`;
   }
   function pintarLote() {
     const n = E.lote.length;
@@ -429,7 +445,7 @@
     $("#loteLimpiar").hidden = !n || E.loteCorriendo;
     $("#loteResumen").textContent = n ? resumenLote() : "";
     $("#loteTabla").innerHTML = n
-      ? `<table class="tabla-lote"><thead><tr><th>#</th><th>Matrícula</th><th>Municipio</th><th>Encargado</th><th>Resultado</th><th>Predial</th><th>Encontrado en (clic para confirmar)</th><th>Área VUR / catastro</th><th></th></tr></thead>
+      ? `<table class="tabla-lote"><thead><tr><th>#</th><th>Matrícula</th><th>Municipio / encargado</th><th>FMI ↔ cédula catastral</th><th>Contraste</th><th>Predial</th><th>Encontrado en (clic para confirmar)</th><th></th></tr></thead>
          <tbody>${E.lote.map(filaLote).join("")}</tbody></table>`
       : `<div class="vacio"><p>Escriba o pegue las matrículas (una por línea), o agréguelas desde el Excel, y presione <b>Investigar todas</b>.</p>
          <p class="nota">También puede pegar varias consultas del VUR seguidas: se guardan y se investigan juntas.</p></div>`;
@@ -438,7 +454,9 @@
     const ok = E.lote.filter((f) => !f.error);
     const cuenta = (k) => ok.filter((f) => f.resumen.veredicto === k).length;
     const conCat = ok.filter((f) => f.catastro.estado === "ok").length;
-    return `${E.lote.length} predio(s): ${cuenta("ok")} sin diferencias · ${cuenta("revisar")} por revisar · ${cuenta("diferente")} con diferencias · ${cuenta("sin_dato")} sin contraste · ${conCat} encontrados en el catastro` +
+    const conf = (k) => ok.filter((f) => f.confirmacion && f.confirmacion.veredicto === k).length;
+    return `FMI ↔ cédula: ${conf("confirmado")} confirmados · ${conf("no_coincide")} no coinciden · ${conf("revisar")} por revisar · ${conf("sin_confirmar")} sin confirmar. ` +
+      `Contraste de ${E.lote.length} predio(s): ${cuenta("ok")} sin diferencias · ${cuenta("revisar")} por revisar · ${cuenta("diferente")} con diferencias · ${cuenta("sin_dato")} sin contraste · ${conCat} encontrados en el catastro` +
       (E.lote.length - ok.length ? ` · ${E.lote.length - ok.length} con error` : "");
   }
 
