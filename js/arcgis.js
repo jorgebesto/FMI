@@ -1,6 +1,6 @@
-/* Consultas a servicios ArcGIS REST desde el navegador.
-   Primero intenta fetch normal; si el servidor no permite consultas desde otra página (CORS), usa JSONP,
-   que los servidores ArcGIS aceptan con el parámetro 'callback'. */
+/* Consultas a servicios web desde el navegador.
+   Primero intenta fetch normal; si el servidor no permite consultas desde otra página (CORS), usa JSONP
+   (los servidores ArcGIS y CKAN aceptan el parámetro 'callback'). */
 (function (g) {
   const IP = (g.IP = g.IP || {});
   let contador = 0;
@@ -21,6 +21,29 @@
 
   class ErrorServicio extends Error {}
 
+  const conQuery = (url, params) => {
+    const qs = new URLSearchParams(params).toString();
+    return qs ? url + (url.includes("?") ? "&" : "?") + qs : url;
+  };
+
+  IP.http = {
+    ErrorServicio,
+    conQuery,
+    // Trae JSON con fetch y, si el navegador lo bloquea, con JSONP.
+    async json(url, ms = 25000) {
+      try {
+        const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+        const t = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+        const r = await fetch(url, ctrl ? { signal: ctrl.signal } : {});
+        if (t) clearTimeout(t);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return await r.json();
+      } catch (e) {
+        return await jsonp(url, ms);
+      }
+    },
+  };
+
   function revisar(js) {
     if (js && js.error) throw new ErrorServicio(js.error.message || JSON.stringify(js.error));
     return js;
@@ -28,24 +51,19 @@
 
   IP.arcgis = {
     ErrorServicio,
-    async get(url, params = {}, ms = 25000) {
-      const qs = new URLSearchParams({ ...params, f: "json" }).toString();
-      const completa = url + (url.includes("?") ? "&" : "?") + qs;
-      try {
-        const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
-        const t = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
-        const r = await fetch(completa, ctrl ? { signal: ctrl.signal } : {});
-        if (t) clearTimeout(t);
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return revisar(await r.json());
-      } catch (e) {
-        if (e instanceof ErrorServicio) throw e;
-        return revisar(await jsonp(completa, ms));
-      }
+    async get(url, params = {}, ms) {
+      return revisar(await IP.http.json(conQuery(url, { ...params, f: "json" }), ms));
     },
+    parametrosQuery: (params) => ({ outFields: "*", returnGeometry: "false", ...params }),
     query(urlCapa, params, ms) {
-      return IP.arcgis.get(urlCapa.replace(/\/$/, "") + "/query",
-        { outFields: "*", returnGeometry: "false", ...params }, ms);
+      return IP.arcgis.get(urlCapa.replace(/\/$/, "") + "/query", IP.arcgis.parametrosQuery(params), ms);
+    },
+    // Enlace para ver la misma búsqueda en la página del servicio (formato HTML), para confirmar.
+    enlaceQuery(urlCapa, params) {
+      const p = { ...IP.arcgis.parametrosQuery(params), f: "html" };
+      delete p.outSR;
+      p.returnGeometry = "false";
+      return conQuery(urlCapa.replace(/\/$/, "") + "/query", p);
     },
     sql: (v) => "'" + String(v).replace(/'/g, "''") + "'",
     centroide(geom) {

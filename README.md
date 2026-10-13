@@ -34,47 +34,67 @@ También funciona como "Static Site" en Render, o abriendo `index.html` con dobl
 
 ## Cómo se usa
 
+La página tiene dos pestañas: **Un predio** y **Varios predios**.
+
+### Un predio
+
 1. **Excel de la empresa.** Se carga una vez y queda guardado en ese navegador.
    - La página busca la fila de encabezados que tiene "FMI".
-   - Reconoce las columnas de su formato: FMI, CÍRCULO REGISTRAL, MUNICIPIO, DIRECCIÓN, CÉDULA CATASTRAL, ENCARGADO…
-   - Tiene que ser .xlsx. Si es .xls viejo, ábralo en Excel y guárdelo como .xlsx.
+   - Reconoce las columnas de su formato: FMI, CÍRCULO REGISTRAL, MUNICIPIO, DIRECCIÓN, CÉDULA CATASTRAL, ENCARGADO, ESTADO…
+   - Tiene que ser .xlsx.
 2. **Consulta del VUR.** En el VUR abra "Datos Básicos" de la matrícula.
    - Seleccione toda la pantalla (Ctrl+A), cópiela (Ctrl+C), péguela en la página y presione **Leer y buscar**.
-   - Puede pegar varias consultas seguidas.
    - También puede subir el PDF de la consulta.
    - Cada consulta queda guardada en el navegador.
-3. **Buscar una matrícula.** Escriba la matrícula arriba (`50C-1234567`, `008-2077`, `8-2077`…). La ficha muestra:
-   - **Contraste** Excel / VUR / Catastro, con cada campo marcado como "Coincide", "Revisar" o "Diferente".
-   - **Propietarios**, datos del folio, salvedades, cabida y linderos, y complementaciones.
-   - **Catastro:**
-     - SINIC: tipo de predio, condición, destino, área catastral, zona, vigencia y polígono en el mapa.
-     - Geoportal local: CHIP, dirección y área construida en Bogotá; CBML y área del lote en Medellín.
-   - El **gestor catastral** del municipio con sus datos de contacto.
-   - **Enlaces:** VUR, certificado de tradición, geoportal, Google Maps, Colombia en Mapas y VIVI.
-   - La **fila completa del Excel** y las **consultas anteriores del VUR** de esa matrícula. Si cambiaron los propietarios entre consultas, la página lo avisa.
+3. **Buscar una matrícula.** Escriba la matrícula arriba. La ficha muestra:
+   - **Contraste** Excel / VUR / Catastro, campo por campo. Debajo de cada dato del catastro aparece de qué fuente salió.
+   - **Dónde se encontró la información:** una fila por fuente con lo siguiente:
+     - la página donde se encontró;
+     - si es del **IGAC** o del **geoportal del gestor**;
+     - la fila exacta del Excel y el número de consulta del VUR;
+     - el **enlace de la búsqueda** para confirmarla, que abre la misma consulta en la página del servicio.
+   - Propietarios, folio, salvedades, cabida y linderos, mapa del polígono, gestor catastral con su contacto y consultas anteriores del VUR.
 4. **Descargar Excel.** Baja un libro con estas hojas:
    - Resumen
    - Contraste
+   - Fuentes, con los enlaces de confirmación
    - Propietarios
    - Salvedades y alertas
    - VUR completo
    - Catastro
-   - Excel enriquecido: sus filas originales con las columnas nuevas.
+   - Excel enriquecido
 
-Puede compartir el enlace `.../#m=008-2077` para abrir directamente una ficha. Ojo: la otra persona solo verá lo del VUR y del Excel si los tiene cargados en su propio navegador.
+### Varios predios
+
+1. Escriba o pegue las matrículas, una por línea. También puede pegar varias consultas del VUR seguidas, o presionar **Agregar matrículas del Excel**, filtrando por estado, encargado o municipio.
+2. Presione **Investigar todas**. La página consulta de a dos predios a la vez y muestra el avance. Se puede detener.
+3. La tabla muestra, por predio:
+   - el resultado del contraste;
+   - el número predial;
+   - **en qué fuentes se encontró**: cada una es un enlace para confirmar la búsqueda, con su etiqueta IGAC o gestor;
+   - el área según el VUR y según el catastro;
+   - las alertas.
+4. **Ver ficha** abre la ficha completa de ese predio en la otra pestaña. **Descargar Excel** baja el resultado de todos los predios.
 
 ## De dónde sale la información del catastro
 
-| Fuente | Qué trae | Cobertura |
-|---|---|---|
-| SINIC – IGAC (`sigi.igac.gov.co`) | Número predial, tipo y condición del predio, destino económico, área catastral de terreno, zona, vigencia, tipo de derecho y polígono | Todo el país, con lo que cada gestor reporta cada dos meses |
-| Catastro Bogotá – IDECA | CHIP, cédula catastral, dirección, barrio, áreas de terreno y construcción, destino, uso y polígono del lote | Bogotá |
-| Catastro Medellín – GeoMedellín | CBML, área y polígono del lote | Medellín |
-| Directorio de gestores – IGAC | Quién lleva el catastro de cada municipio y sus datos de contacto | Todo el país |
+La página primero averigua quién es el gestor catastral del municipio. Para eso usa el código DANE del número predial y el directorio oficial del IGAC. Luego consulta, en este orden:
 
-Para consultar el SINIC se necesita el **número predial nacional de 30 dígitos**, que en el VUR aparece como "Referencia Catastral". Si el VUR solo trae el predial anterior, la página lo muestra para compararlo a ojo.
+| Fuente | Origen | Se busca por | Qué trae | Cobertura |
+|---|---|---|---|---|
+| Catastro Bogotá – IDECA | Gestor | Número predial, CHIP, cédula catastral | Dirección, barrio, áreas, destino, uso, polígono | Bogotá |
+| Catastro Medellín – GeoMedellín | Gestor | Número predial (21 dígitos) | CBML, área y polígono del lote | Medellín |
+| Catastro Barranquilla – datos abiertos | Gestor | **Matrícula inmobiliaria (círculo 040)**, número predial nuevo o anterior | Estado y apertura del folio, áreas catastral y registral, destino, estrato, NUPRE, dirección, polígono | Barranquilla |
+| Área Metropolitana de Bucaramanga | Gestor | Número predial nuevo o anterior | Polígono del terreno | Bucaramanga, Girón, Piedecuesta |
+| Cali – información histórica de predios (datos abiertos) | Gestor | Número predial | Áreas, avalúo, usos (vigencia 2022). **No probado** | Cali |
+| Base catastral pública del IGAC | IGAC | **Número predial nuevo o anterior (20 dígitos)** | Dirección, destino, áreas de terreno y construida, zonas físicas y económicas, construcciones (pisos, habitaciones, baños), polígono | Municipios a cargo del IGAC |
+| SINIC – IGAC | IGAC | Número predial nacional (30) | Tipo y condición del predio, destino, área catastral, zona, vigencia, tipo de derecho, polígono | Todo el país |
 
-Para agregar el geoportal de otro municipio, edite `js/config.js` siguiendo el ejemplo de Medellín. Solo hay que poner el código DANE, la URL de la capa ArcGIS y el campo con el número predial.
+Con el predial anterior de 20 dígitos (la "cédula catastral" de su Excel), los municipios del IGAC se pueden investigar sin la consulta del VUR. En Barranquilla basta la matrícula.
+
+Los demás gestores (Antioquia, Cundinamarca, Valle de Aburrá, AMCO, Santa Marta, Cúcuta, Ibagué, Villavicencio, Neiva, Montería, Soacha y los municipios con catastro propio) no publican un servicio consultable. Para ellos queda el SINIC.
+
+Para agregar otro geoportal edite `js/config.js` (sección `por_municipio`).
 
 ## Cosas a tener en cuenta
 
@@ -87,6 +107,7 @@ Para agregar el geoportal de otro municipio, edite `js/config.js` siguiendo el e
   - más de 15 % es "Diferente".
 - **PDF del VUR:** la lectura se hizo para el texto copiado de la pantalla, que está probado. La del PDF no se ha probado con un PDF real.
 - **Servicios caídos:** si un servicio del catastro no responde, la ficha muestra el error y deja el enlace para consultarlo a mano.
+- **Enlaces de confirmación:** abren la misma búsqueda en la página del servicio (formato de tabla del servidor ArcGIS o JSON de datos abiertos). Así se ve el registro original tal como lo publica el IGAC o el gestor.
 - **Datos guardados:** quedan en ese navegador y en ese computador. Si se borran los datos de navegación, se pierden. El botón "Borrar todos los datos de este navegador" los quita a propósito.
 
 ## Archivos
@@ -101,7 +122,7 @@ js/excel.js         Excel de la empresa y búsqueda por FMI
 js/config.js        fuentes del catastro (aquí se agregan geoportales)
 js/arcgis.js        consultas a servicios ArcGIS (fetch y JSONP)
 js/gestores.js      directorio de gestores catastrales del IGAC
-js/geoportales.js   SINIC, Bogotá, Medellín
+js/geoportales.js   SINIC, base pública IGAC, Bogotá, Medellín, Barranquilla, AMB, Cali
 js/contraste.js     comparación campo a campo
 js/almacen.js       lo que se guarda en el navegador
 js/investigar.js    arma la ficha de una matrícula

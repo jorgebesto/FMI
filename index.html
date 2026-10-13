@@ -24,8 +24,14 @@
   </form>
 </header>
 
+<nav class="pestanas" aria-label="Secciones">
+  <button type="button" data-pestana="uno" class="activa">Un predio</button>
+  <button type="button" data-pestana="varios">Varios predios</button>
+</nav>
+
 <div id="avisoNavegador" class="aviso" hidden></div>
 
+<div id="vistaUno">
 <main class="contenido">
   <aside class="lateral">
     <section class="panel">
@@ -82,10 +88,60 @@
     </div>
   </section>
 </main>
+</div>
+
+<div id="vistaVarios" hidden>
+<main class="contenido">
+  <aside class="lateral">
+    <section class="panel">
+      <h2><span class="paso">1</span>Matrículas a investigar</h2>
+      <p class="ayuda">Una matrícula por línea (también sirven separadas por comas). O pegue varias consultas del VUR seguidas.</p>
+      <textarea id="loteTexto" placeholder="50C-1234567&#10;008-2077&#10;040-30938"></textarea>
+      <div id="lotePrevia" class="previa" data-listas="1"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Tomar del Excel de la empresa</h2>
+      <p id="loteSinExcel" class="ayuda">Cargue el Excel en la pestaña <b>Un predio</b> para poder tomar las matrículas de ahí.</p>
+      <div id="loteExcel" hidden>
+        <label class="campo-filtro">Estado <select id="filtroEstado"></select></label>
+        <label class="campo-filtro">Encargado <select id="filtroEncargado"></select></label>
+        <label class="campo-filtro">Municipio <select id="filtroMunicipio"></select></label>
+        <div class="fila"><button type="button" id="agregarDesdeExcel" class="secundario">Agregar matrículas del Excel</button></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="paso">2</span>Investigar</h2>
+      <label class="chk"><input type="checkbox" id="loteCatastro" checked> Consultar el catastro (SINIC y geoportales)</label>
+      <div class="fila">
+        <button type="button" id="loteIniciar">Investigar todas</button>
+        <button type="button" id="loteDetener" class="secundario" hidden>Detener</button>
+      </div>
+      <progress id="loteBarra" hidden></progress>
+      <div id="loteProgreso" class="previa"></div>
+      <p class="ayuda">Se consultan de a dos para no saturar los servidores del catastro.</p>
+    </section>
+  </aside>
+
+  <section class="resultados">
+    <div class="barra">
+      <h2>Resultados de varios predios</h2>
+      <div class="fila">
+        <button type="button" id="loteDescargar" hidden>Descargar Excel</button>
+        <button type="button" id="loteLimpiar" class="secundario" hidden>Limpiar</button>
+      </div>
+    </div>
+    <p id="loteResumen" class="resumen-lote"></p>
+    <div id="loteTabla"></div>
+  </section>
+</main>
+</div>
 
 <footer class="pie">
   El Excel y las consultas del VUR se guardan solo en este navegador; no se envían a ningún servidor.
-  Al catastro solo se envía el número predial. Fuentes: IGAC (SINIC y directorio de gestores), Catastro Bogotá (IDECA), Catastro Medellín.
+  Al catastro solo se envía el número predial (y la matrícula en Barranquilla). Fuentes: IGAC (SINIC, base catastral pública y directorio de gestores),
+  Catastro Bogotá (IDECA), Catastro Medellín, Catastro Barranquilla, Área Metropolitana de Bucaramanga y datos abiertos de Cali.
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>

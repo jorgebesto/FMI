@@ -43,7 +43,9 @@
         return vistos[base] === 1 ? base : `${base} (${vistos[base]})`;
       });
       this.columnasOriginales = originales;
-      this.filas = hoja.filas.slice(cab + 1).filter((f) => f && f.some((x) => U.limpiar(x)));
+      const pares = hoja.filas.map((f, i) => [f, i + 1]).slice(cab + 1).filter(([f]) => f && f.some((x) => U.limpiar(x)));
+      this.filas = pares.map((p) => p[0]);
+      this.numeros = pares.map((p) => p[1]); // número de fila en la hoja de Excel
       this.hoja = hoja.nombre;
       this.nombreArchivo = nombreArchivo || "";
       this.mapa = {};
@@ -84,9 +86,25 @@
       return r;
     }
 
+    valoresDistintos(clave) {
+      const v = new Map();
+      for (const f of this.filas) { const x = this.valor(f, clave); if (x) v.set(x, (v.get(x) || 0) + 1); }
+      return [...v.entries()].sort((a, b) => a[0].localeCompare(b[0], "es"));
+    }
+    // Matrículas de todas las filas que cumplan los filtros { clave: valor }
+    matriculas(filtros = {}) {
+      const out = [];
+      this.filas.forEach((f) => {
+        for (const [k, v] of Object.entries(filtros)) if (v && this.valor(f, k) !== v) return;
+        const m = U.normalizarMatricula(this.valor(f, "fmi"), this.valor(f, "circulo"));
+        if (m && !out.includes(m)) out.push(m);
+      });
+      return out;
+    }
+
     registro(i) {
       const f = this.filas[i];
-      const d = { _fila: i };
+      const d = { _fila: i, _numero: this.numeros[i] };
       for (const k of Object.keys(COLUMNAS)) d[k] = this.valor(f, k);
       d._todas = this.columnasOriginales.map((c, j) => [c || `Columna ${j + 1}`, U.limpiar(f[j])]);
       return d;

@@ -6,6 +6,8 @@
   const ESTADO = { ok: "Coincide", revisar: "Revisar", diferente: "Diferente", sin_dato: "—" };
   const CAT = { ok: "Encontrado", no_encontrado: "No encontrado", sin_datos: "Sin código para buscar", error: "Error", omitido: "No consultado" };
   IP.textos = { VEREDICTO, ESTADO, CAT };
+  // Lista corta de las fuentes catastrales donde sí apareció el predio
+  IP.encontradoEn = (f) => (f.catastro.fuentes || []).filter((x) => x.estado === "ok").map((x) => `${x.fuente} (${x.origen === "IGAC" ? "IGAC" : "gestor"})`).join("; ");
 
   IP.generarReporte = function (fichas, excel) {
     const S = IP.xlsx.ESTILO;
@@ -15,7 +17,7 @@
       nombre: "Resumen",
       columnas: ["Matrícula", "Departamento", "Municipio", "Encargado", "Resultado", "Diferencias", "Por revisar", "Alertas",
         "Predial nacional", "Predial anterior", "Propietarios (VUR)", "Estado folio", "Área VUR (m²)", "Área catastro (m²)",
-        "Destino (catastro)", "Gestor catastral", "Catastro", "No. consulta VUR", "Fecha consulta VUR", "Fecha investigación"],
+        "Destino (catastro)", "Gestor catastral", "Catastro", "Encontrado en", "No. consulta VUR", "Fecha consulta VUR", "Fecha investigación"],
       anchos: { Alertas: 45, "Propietarios (VUR)": 45 },
       filas: fichas.map((f) => {
         const v = f.vur || {}, r = f.registro || {}, c = f.catastro, d = c.datos || {};
@@ -23,17 +25,28 @@
           { v: VEREDICTO[f.resumen.veredicto], s: S[f.resumen.veredicto] }, f.resumen.diferencias, f.resumen.revisar, f.alertas.join("; "),
           v.referencia_catastral || d.numero_predial || c.claves.predial30, v.referencia_catastral_anterior, v.propietarios_texto, v.estado_folio,
           v.area_terreno_m2 ?? "", d.area_terreno_m2 ?? "", d.destino_economico, c.gestor, CAT[c.estado] || c.estado,
-          v.no_consulta, v.fecha_consulta, f.fecha];
+          IP.encontradoEn(f), v.no_consulta, v.fecha_consulta, f.fecha];
       }),
     });
 
     hojas.push({
       nombre: "Contraste",
-      columnas: ["Matrícula", "Campo", "Excel empresa", "VUR", "Catastro", "Estado", "Nota"],
-      anchos: { "Excel empresa": 35, VUR: 40, Catastro: 35, Nota: 35 },
+      columnas: ["Matrícula", "Campo", "Excel empresa", "VUR", "Catastro", "Fuente del dato catastral", "Estado", "Nota"],
+      anchos: { "Excel empresa": 35, VUR: 40, Catastro: 35, "Fuente del dato catastral": 30, Nota: 35 },
       filas: fichas.flatMap((f) => f.contraste.map((x) => {
         const s = S[x.estado];
-        return [f.matricula, x.campo, { v: x.excel, s }, { v: x.vur, s }, { v: x.catastro, s }, { v: ESTADO[x.estado], s }, x.nota];
+        return [f.matricula, x.campo, { v: x.excel, s }, { v: x.vur, s }, { v: x.catastro, s }, x.fuente_catastro || "", { v: ESTADO[x.estado], s }, x.nota];
+      })),
+    });
+
+    hojas.push({
+      nombre: "Fuentes",
+      columnas: ["Matrícula", "Fuente", "Origen", "Resultado", "Dónde / detalle", "Enlace para confirmar", "Otros enlaces"],
+      anchos: { "Dónde / detalle": 60, "Enlace para confirmar": 60, "Otros enlaces": 60 },
+      filas: fichas.flatMap((f) => (f.donde || []).map((x) => {
+        const est = { ok: "ok", no_encontrado: "diferente", error: "diferente" }[x.estado] || "sin_dato";
+        return [f.matricula, x.fuente, x.origen, { v: (x.etiqueta || CAT[x.estado] || x.estado) + (x.no_probado ? " (fuente no probada)" : ""), s: S[est] }, x.detalle,
+          (x.enlaces[0] || {}).url || "", x.enlaces.slice(1).map((e) => `${e.texto}: ${e.url}`).join("\n")];
       })),
     });
 
@@ -70,12 +83,13 @@
 
     const camposCat = ["numero_predial", "departamento", "municipio", "zona", "tipo_predio", "condicion_predio", "tipo_derecho",
       "destino_economico", "area_terreno_m2", "area_construida_m2", "vigencia", "nombre_predio", "chip", "cedula_catastral",
-      "direccion", "barrio", "codigo_local"];
+      "direccion", "barrio", "codigo_local", "numero_predial_anterior", "matricula_inmobiliaria", "estado_fmi", "fecha_apertura_fmi",
+      "area_registral_m2", "estrato", "zona_fisica", "zona_economica", "construcciones", "area_poligono_m2", "avaluo", "uso"];
     hojas.push({
       nombre: "Catastro",
-      columnas: ["Matrícula", "Fuente", "Estado", "Mensaje", ...camposCat, "Latitud", "Longitud"],
+      columnas: ["Matrícula", "Fuente", "Origen", "Estado", "Mensaje", "Enlace para confirmar", ...camposCat, "Latitud", "Longitud"],
       filas: fichas.flatMap((f) => (f.catastro.fuentes || []).map((s) =>
-        [f.matricula, s.fuente, CAT[s.estado] || s.estado, s.mensaje, ...camposCat.map((c) => (s.datos || {})[c] ?? ""), s.lat ?? "", s.lon ?? ""])),
+        [f.matricula, s.fuente, s.origen, CAT[s.estado] || s.estado, s.mensaje, ((s.enlaces || [])[0] || {}).url || "", ...camposCat.map((c) => (s.datos || {})[c] ?? ""), s.lat ?? "", s.lon ?? ""])),
     });
 
     if (excel) {

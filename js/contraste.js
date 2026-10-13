@@ -49,8 +49,9 @@
 
     const fmiExcel = excel.fmi ? U.normalizarMatricula(excel.fmi, excel.circulo) : "";
     const fmiVur = vur.matricula_normalizada || "";
-    e = comparar([fmiExcel, fmiVur], (a, b) => (a === b ? 1 : 0));
-    filas.push(fila("Matrícula inmobiliaria", fmiExcel, fmiVur, "", ...e));
+    const fmiCat = cd.matricula_inmobiliaria ? U.normalizarMatricula(cd.matricula_inmobiliaria) : "";
+    e = comparar([fmiExcel, fmiVur, fmiCat], (a, b) => (a === b ? 1 : 0));
+    filas.push(fila("Matrícula inmobiliaria", fmiExcel, fmiVur, fmiCat, ...e));
 
     const circVur = U.circuloDeMatricula(fmiVur);
     const codCirc = (x) => (String(x).match(/[0-9][0-9A-Za-z]*/) || [""])[0].replace(/^0+/, "").toUpperCase();
@@ -79,8 +80,9 @@
     let antVur = U.limpiar(vur.referencia_catastral_anterior) || U.limpiar(vur.cedula_catastral);
     if (!antVur && ref && !chipVur && !nuevoVur) antVur = ref;
     const antExcel = cedExcel && !excel30 && cedExcel.toUpperCase() !== chipVur && U.tipoCodigo(cedExcel) !== "chip" ? cedExcel : "";
-    e = comparar([antExcel, antVur, cd.cedula_catastral], codigoAnterior);
-    filas.push(fila("Predial anterior / cédula catastral", antExcel, antVur, cd.cedula_catastral, ...e));
+    const antCat = cd.numero_predial_anterior || cd.cedula_catastral;
+    e = comparar([antExcel, antVur, antCat], codigoAnterior);
+    filas.push(fila("Predial anterior / cédula catastral", antExcel, antVur, antCat, ...e));
 
     const chipExcel = U.tipoCodigo(cedExcel) === "chip" ? cedExcel.toUpperCase() : "";
     if (chipVur || chipExcel || cd.chip) {
@@ -104,13 +106,31 @@
     e = comparar([aVur, aCat], area);
     if (aVur && aCat) e[1] = `diferencia ${U.formatoNumero((Math.abs(aVur - aCat) / Math.max(aVur, aCat)) * 100, 1)} %`;
     filas.push(fila("Área de terreno", "", U.formatoArea(aVur), U.formatoArea(aCat), ...e));
+    const rCat = num(cd.area_registral_m2);
+    if (rCat) {
+      e = comparar([aVur, rCat], area);
+      filas.push(fila("Área registral (según catastro)", "", U.formatoArea(aVur), U.formatoArea(rCat), ...e));
+    }
     const cVur = num(vur.area_construida_m2), cCat = num(cd.area_construida_m2);
     if (cVur || cCat) {
       e = comparar([cVur, cCat], area);
       filas.push(fila("Área construida", "", U.formatoArea(cVur), U.formatoArea(cCat), ...e));
     }
-    if (U.limpiar(vur.estado_folio))
-      filas.push(fila("Estado del folio", "", vur.estado_folio, "", U.normalizar(vur.estado_folio) === "ACTIVO" ? OK : REVISAR));
+    if (U.limpiar(vur.estado_folio) || U.limpiar(cd.estado_fmi)) {
+      const activos = [vur.estado_folio, cd.estado_fmi].filter((x) => U.limpiar(x));
+      filas.push(fila("Estado del folio", "", vur.estado_folio, cd.estado_fmi, activos.every((x) => U.normalizar(x) === "ACTIVO") ? OK : REVISAR));
+    }
+
+    // De qué fuente salió cada valor de la columna Catastro
+    const origen = (cat && cat.origenDatos) || {};
+    const CLAVE = {
+      "Matrícula inmobiliaria": "matricula_inmobiliaria", Departamento: "departamento", Municipio: "municipio", "Dirección": "direccion",
+      "Número predial nacional (30)": "numero_predial", "Predial anterior / cédula catastral": cd.numero_predial_anterior ? "numero_predial_anterior" : "cedula_catastral",
+      "CHIP (Bogotá)": "chip", "Código local del catastro": "codigo_local", "Urbano / rural": "zona", "Tipo / condición catastral": "tipo_predio",
+      "Destino económico": "destino_economico", "Área de terreno": "area_terreno_m2", "Área registral (según catastro)": "area_registral_m2",
+      "Área construida": "area_construida_m2", "Estado del folio": "estado_fmi",
+    };
+    for (const f of filas) if (f.catastro) f.fuente_catastro = origen[CLAVE[f.campo]] || "";
 
     const diferencias = filas.filter((f) => f.estado === DIFERENTE).length;
     const revisar = filas.filter((f) => f.estado === REVISAR).length;
