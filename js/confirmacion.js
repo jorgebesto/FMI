@@ -87,6 +87,9 @@
       const enlace = ((f.enlaces || [])[0] || {}).url;
       const predial = U.limpiar(f.datos.numero_predial) || U.limpiar(f.datos.codigo_local);
       if (mismaMatricula(mCat, fmi)) {
+        const codVur = vur ? [vur.referencia_catastral, vur.referencia_catastral_anterior].map(U.limpiar).filter(Boolean) : [];
+        if (codVur.some((c) => relacion(c, predial) === "igual"))
+          prueba("apoya", f.fuente, `${f.fuente} y el VUR coinciden: el folio ${fmi} es el predio ${predial}.`, enlace);
         if (!ced) prueba("confirma", f.fuente, `${f.fuente} asocia la matrícula ${mCat} al predio ${predial}.`, enlace);
         else {
           const r = relacionConPuente(ced, codigosDe(f.datos), []);

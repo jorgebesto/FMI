@@ -262,6 +262,91 @@
     return r;
   }
 
+  /* ---------------- Catastro Antioquia (BCGS) ---------------- */
+  // Lee un atributo sin importar mayúsculas ni tildes del nombre del campo
+  function campo(a, ...nombres) {
+    if (!a) return undefined;
+    const mapa = {};
+    for (const k of Object.keys(a)) mapa[U.normalizar(k).replace(/ /g, "_")] = k;
+    for (const n of nombres) { const k = mapa[U.normalizar(n).replace(/ /g, "_")]; if (k !== undefined) return a[k]; }
+    return undefined;
+  }
+  async function antioquia(cfg, claves) {
+    const s = A().sql;
+    const circ = U.circuloDeMatricula(claves.matricula), num = U.numeroDeMatricula(claves.matricula);
+    const intentos = [];
+    if (claves.predial30) intentos.push({ tipo: "predial", where: `NPN = ${s(claves.predial30)} OR TERRENO_CODIGO = ${s(claves.predial30)}` });
+    if (circ && /^\d+$/.test(num)) intentos.push({ tipo: "matricula", where: `LOWER(CIRCULO_MATRICULA) LIKE ${s("%" + `${circ}-${num}`.toLowerCase() + "%")}` });
+    if (!intentos.length) return resultado("sin_datos", cfg, { mensaje: "Hace falta el número predial de 30 dígitos o la matrícula con su círculo." });
+    let feat = null, usado = null, capaUsada = cfg.terreno_predio[0];
+    const enlaces = [];
+    for (const it of intentos) {
+      for (const capa of cfg.terreno_predio) {
+        const js = await A().query(capa, { where: it.where, returnGeometry: "true", outSR: 4326, resultRecordCount: 20 });
+        let feats = js.features || [];
+        if (it.tipo === "matricula") // el LIKE puede traer 008-29640; se deja solo la matrícula exacta
+          feats = feats.filter((f) => U.normalizarMatricula(campo(f.attributes, "CIRCULO_MATRICULA")) === `${circ}-${num}`);
+        if (feats.length) {
+          feat = feats.find((f) => campo(f.attributes, "NPN") === claves.predial30) || feats[0];
+          usado = it; capaUsada = capa;
+          if (feats.length > 1) usado.varios = feats.length;
+          break;
+        }
+      }
+      if (feat) break;
+    }
+    if (!feat) {
+      for (const it of intentos) enlaces.push(consultaHtml(`Ver la búsqueda por ${it.tipo === "predial" ? "número predial" : "matrícula"} (rural)`, cfg.terreno_predio[0], { where: it.where }));
+      return resultado("no_encontrado", cfg, { mensaje: "Catastro Antioquia no devolvió el predio.", enlaces });
+    }
+    enlaces.push(consultaHtml(`Ver la búsqueda por ${usado.tipo === "predial" ? "número predial" : "matrícula"} en Catastro Antioquia`, capaUsada, { where: usado.where }));
+    const a = feat.attributes;
+    const cm = U.limpiar(campo(a, "CIRCULO_MATRICULA"));
+    const mat = cm || [U.limpiar(campo(a, "CIRULO", "CIRCULO")), U.limpiar(campo(a, "MATRICULA"))].filter(Boolean).join("-");
+    const datos = {
+      numero_predial: U.limpiar(campo(a, "NPN")) || U.limpiar(campo(a, "TERRENO_CODIGO")),
+      matricula_inmobiliaria: mat ? U.normalizarMatricula(mat) : "",
+      ficha: U.limpiar(campo(a, "FICHA")),
+      direccion: U.limpiar(campo(a, "DIRECCION")),
+      condicion_predio: U.limpiar(campo(a, "CARACTERISTICA")),
+      vereda: U.limpiar(campo(a, "VEREDA")),
+      sector: U.limpiar(campo(a, "SECTOR")),
+      avaluo_terreno: campo(a, "AVALUO_TERRENO"),
+      avaluo_comercial_terreno: campo(a, "AVALUO_COMERCIAL_TERRENO"),
+      area_poligono_m2: campo(a, "SHAPE.AREA", "AREA.FORMA", "SHAPE_AREA", "Shape__Area"),
+      zona: capaUsada === cfg.terreno_predio[0] ? "Rural" : "Urbano",
+    };
+    const r = resultado("ok", cfg, { datos, crudo: a, enlaces,
+      mensaje: `Predio encontrado por ${usado.tipo === "predial" ? "número predial" : "matrícula"}.` + (usado.varios ? ` Hubo ${usado.varios} coincidencias; se muestra la primera.` : "") });
+    ponerGeometria(r, feat.geometry);
+    // Construcciones del predio
+    try {
+      const npn = datos.numero_predial;
+      const pc = { where: `CODIGO_CONSTRUCCION = ${s(npn)} OR CODIGO_CONSTRUCCION LIKE ${s(npn.slice(0, 21) + "%")}`, resultRecordCount: 50 };
+      const capaC = cfg.construccion[capaUsada === cfg.terreno_predio[0] ? 0 : 1];
+      const jc = await A().query(capaC, pc);
+      const cons = (jc.features || []).map((f) => f.attributes);
+      if (cons.length) {
+        datos.construcciones = cons.map((c) => {
+          const partes = [];
+          const pisos = campo(c, "NUMERO_PISOS", "NUMERO_PISO"), anio = campo(c, "ANIO_CONSTRUCCION"), av = campo(c, "AVALUO_CONSTRUCCION");
+          const area = campo(c, "SHAPE.AREA", "AREA.FORMA", "SHAPE_AREA");
+          if (area) partes.push(`${U.formatoNumero(area, 0)} m²`);
+          if (pisos) partes.push(`${pisos} piso(s)`);
+          if (anio) partes.push(`año ${anio}`);
+          if (av) partes.push(`avalúo $${U.formatoNumero(av, 0)}`);
+          return partes.join(" · ");
+        }).filter(Boolean).join(" | ");
+        const total = cons.reduce((t, c) => t + (Number(campo(c, "SHAPE.AREA", "AREA.FORMA", "SHAPE_AREA")) || 0), 0);
+        if (total) datos.area_construida_m2 = Math.round(total * 100) / 100;
+        const avc = cons.reduce((t, c) => t + (Number(campo(c, "AVALUO_CONSTRUCCION")) || 0), 0);
+        if (avc) datos.avaluo_construccion = avc;
+        enlaces.push(consultaHtml("Ver las construcciones en Catastro Antioquia", capaC, pc));
+      }
+    } catch (e) { /* las construcciones son un complemento */ }
+    return r;
+  }
+
   /* ---------------- Capas ArcGIS genéricas (AMB, ...) ---------------- */
   async function capas(cfg, claves) {
     const s = A().sql;
@@ -357,9 +442,17 @@
     const esIgac = /igac/i.test(gestor.Gestor || "");
     const fuentes = [];
 
-    const local = C.por_municipio[dane];
+    // Geoportal del gestor: primero por municipio; si no, por el nombre del gestor (p. ej. Catastro Antioquia)
+    let local = C.por_municipio[dane];
+    if (!local) {
+      const nombreGestor = U.normalizar(gestor.Gestor);
+      const clave = Object.keys(C.por_gestor || {}).find((k) => nombreGestor && nombreGestor.includes(U.normalizar(k)));
+      if (clave) local = C.por_gestor[clave];
+      // Sin directorio de gestores: en Antioquia (código 05, menos Medellín) se intenta Catastro Antioquia
+      else if (!gestor.Gestor && /^05/.test(dane || "") && C.por_gestor && C.por_gestor["CATASTRO ANTIOQUIA"]) local = C.por_gestor["CATASTRO ANTIOQUIA"];
+    }
     if (local) {
-      const fn = { bogota, barranquilla, medellin, capas, ckan }[local.conector];
+      const fn = { bogota, barranquilla, medellin, capas, ckan, antioquia }[local.conector];
       const r = fn ? await protegido(() => fn(local, claves), local) : resultado("error", local, { mensaje: "Conector desconocido" });
       fuentes.push(r);
       if (U.tipoCodigo(r.datos.numero_predial) === "nacional30" && !claves.predial30) claves.predial30 = r.datos.numero_predial;

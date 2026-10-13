@@ -76,9 +76,22 @@ function respuesta(url) {
       return { relatedRecordGroups: [{ objectId: 1, relatedRecords: [{ attributes: { clase_via_principal: "Carretera", valor_via_principal: "A la playa", es_direccion_principal: 1 } }] }] };
     return { relatedRecordGroups: [{ objectId: 1, relatedRecords: [{ attributes: {}, geometry: { rings: [[[-74.837, 11.0367], [-74.836, 11.0367], [-74.836, 11.0377], [-74.837, 11.0367]]] } }] }] };
   }
+  if (u.pathname.includes("BCGS_Catastro_Publico/MapServer/10/query")) {
+    if (where.includes("051720001000000260020000000000") || where.includes("%008-2077%"))
+      return f([{ attributes: { NPN: "051720001000000260020000000000", TERRENO_CODIGO: "051720001000000260020000000000", CIRULO: "008", MATRICULA: "2077",
+        CIRCULO_MATRICULA: "008-2077", FICHA: 12345, DIRECCION: "BUENAVISTA", CARACTERISTICA: "NPH (0)", VEREDA: "05172000100026", AVALUO_TERRENO: 25000000,
+        AVALUO_COMERCIAL_TERRENO: 90000000, "SHAPE.AREA": 184500.5 },
+        geometry: { rings: [[[-76.68, 7.67], [-76.67, 7.67], [-76.67, 7.68], [-76.68, 7.67]]] } },
+        { attributes: { NPN: "051720001000000260020000000099", CIRCULO_MATRICULA: "008-20770" } }]);
+    return f([]);
+  }
+  if (u.pathname.includes("BCGS_Catastro_Publico/MapServer/11/query")) return f([]);
+  if (u.pathname.includes("BCGS_Catastro_Publico/MapServer/3/query"))
+    return f([{ attributes: { CODIGO_CONSTRUCCION: "051720001000000260020000000000", NUMERO_PISO: 1, ANIO_CONSTRUCCION: 1995, AVALUO_CONSTRUCCION: 5000000, "SHAPE.AREA": 80 } }]);
   if (u.pathname.includes("CAPA_GESTORES"))
     return f([
-      { attributes: { mpio_cdpmp: "05172", dpto_cnmbr: "ANTIOQUIA", mpio_cnmbr: "CHIGORODÓ", Gestor: "GOBERNACION DE ANTIOQUIA", CORREOS_JU: "catastro@ejemplo.gov.co" } },
+      { attributes: { mpio_cdpmp: "05172", dpto_cnmbr: "ANTIOQUIA", mpio_cnmbr: "CHIGORODÓ", Gestor: "Catastro Antioquia", CORREOS_JU: "catastro@ejemplo.gov.co" } },
+      { attributes: { mpio_cdpmp: "05999", dpto_cnmbr: "ANTIOQUIA", mpio_cnmbr: "SIN SERVICIO", Gestor: "Municipio de Prueba" } },
       { attributes: { mpio_cdpmp: "05001", dpto_cnmbr: "ANTIOQUIA", mpio_cnmbr: "MEDELLÍN", Gestor: "MEDELLIN" } },
       { attributes: { mpio_cdpmp: "11001", dpto_cnmbr: "BOGOTÁ, D.C.", mpio_cnmbr: "BOGOTÁ, D.C.", Gestor: "UAECD" } },
       { attributes: { mpio_cdpmp: "08001", dpto_cnmbr: "ATLÁNTICO", mpio_cnmbr: "BARRANQUILLA", Gestor: "Distrito de Barranquilla" } },
@@ -145,7 +158,7 @@ assert.equal(f1.matricula, "008-2077");
 assert.equal(f1.vur.no_consulta, "000000000");
 assert.equal(f1.registro.encargado, "VICTOR");
 assert.equal(f1.catastro.estado, "ok");
-assert.equal(f1.catastro.gestor, "GOBERNACION DE ANTIOQUIA");
+assert.equal(f1.catastro.gestor, "Catastro Antioquia");
 assert.equal(f1.catastro.datos.area_terreno_m2, 411416);
 const areaFila = f1.contraste.find((x) => x.campo === "Área de terreno");
 assert.equal(areaFila.estado, "diferente");
@@ -188,8 +201,23 @@ assert.ok(f6.catastro.datos.construcciones.includes("3 hab."));
 assert.equal(f6.contraste.find((x) => x.campo === "Predial anterior / cédula catastral").estado, "ok");
 
 // --- Confirmación FMI ↔ cédula catastral
-assert.equal(f1.confirmacion.veredicto, "sin_confirmar"); // formatos distintos y el gestor (Antioquia) no publica la matrícula
-assert.match(f1.confirmacion.recomendacion, /GOBERNACION DE ANTIOQUIA/);
+// Antioquia (BCGS): el gestor liga la matrícula con el predial; el Excel trae la cédula en otro formato -> revisar
+assert.equal(f1.catastro.fuentes.map((x) => x.fuente.split(" – ")[0] + ":" + x.estado).join(","), "Catastro Antioquia:ok,SINIC:ok");
+assert.equal(f1.catastro.datos.matricula_inmobiliaria, "008-2077");
+assert.equal(f1.catastro.datos.ficha, "12345");
+assert.equal(f1.catastro.datos.avaluo_terreno, 25000000);
+assert.match(f1.catastro.datos.construcciones, /año 1995/);
+assert.equal(f1.confirmacion.veredicto, "revisar", JSON.stringify(f1.confirmacion.pruebas));
+assert.equal(IP.confirmarFMI({ matricula: "008-2077", registro: { cedula_catastral: "051720001000000260020000000000" }, vur: v, catastro: f1.catastro }).veredicto, "confirmado");
+// Solo con la matrícula y el municipio del Excel (sin VUR ni predial): Antioquia busca por matrícula y trae el predial
+const soloMat = await IP.consultarCatastro(null, { fmi: "008-2077", circulo: "008", municipio: "CHIGORODÓ", departamento: "ANTIOQUIA" }, "008-2077");
+assert.equal(soloMat.fuentes[0].estado, "ok");
+assert.match(soloMat.fuentes[0].mensaje, /por matrícula/);
+assert.equal(soloMat.claves.predial30, "051720001000000260020000000000");
+assert.ok(soloMat.fuentes.some((x) => x.fuente.startsWith("SINIC") && x.estado === "ok"));
+// Gestor sin servicio consultable -> confirmar a mano
+const sinServ = await IP.consultarCatastro({ referencia_catastral: "059990001000000260020000000000", codigo_dane: "05999" }, null, "999-1");
+assert.equal(sinServ.fuentes[0].estado, "manual");
 assert.equal(f5.confirmacion.veredicto, "confirmado");          // Barranquilla publica la matrícula del predio
 assert.equal(f6.confirmacion.veredicto, "sin_confirmar");       // IGAC no publica la matrícula; la cédula sí existe
 assert.ok(f6.confirmacion.pruebas.some((x) => x.resultado === "apoya"));

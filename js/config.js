@@ -107,6 +107,27 @@
       },
     },
 
+    // Gestores que cubren varios municipios: se eligen por el nombre del gestor en el directorio del IGAC
+    por_gestor: {
+      "CATASTRO ANTIOQUIA": {
+        conector: "antioquia",
+        nombre: "Catastro Antioquia – BCGS",
+        origen: "Gestor catastral",
+        pagina: "Gobernación de Antioquia · GeoAntioquia / BCGS Catastro Público (geodatos.antioquia.gov.co)",
+        // Capas de terreno-predio (con matrícula y NPN): rural y urbano; construcciones: rural y urbano
+        terreno_predio: [
+          "https://geodatos.antioquia.gov.co/server/rest/services/Catastro/BCGS_Catastro_Publico/MapServer/10",
+          "https://geodatos.antioquia.gov.co/server/rest/services/Catastro/BCGS_Catastro_Publico/MapServer/11",
+        ],
+        construccion: [
+          "https://geodatos.antioquia.gov.co/server/rest/services/Catastro/BCGS_Catastro_Publico/MapServer/3",
+          "https://geodatos.antioquia.gov.co/server/rest/services/Catastro/BCGS_Catastro_Publico/MapServer/0",
+        ],
+        no_probado: true,
+        visor: "https://geovisor.antioquia.gov.co/GeoAntioquia/",
+      },
+    },
+
     // Geoportales (visores) de gestores sin servicio consultable, para confirmar a mano
     visores_gestor: {
       "54001": "https://ide.cucuta.gov.co/geoportal/",

@@ -13,6 +13,8 @@
     zona_fisica: "Zona física", zona_economica: "Zona económica", construcciones: "Construcciones", vigencia: "Vigencia",
     nombre_predio: "Nombre", chip: "CHIP", cedula_catastral: "Cédula catastral", direccion: "Dirección", barrio: "Barrio",
     uso: "Uso", vetustez: "Vetustez", avaluo: "Avalúo", nupre: "NUPRE", codigo_local: "Código local", tipo_lote: "Tipo de lote",
+    ficha: "Ficha predial", vereda: "Vereda", sector: "Sector", avaluo_terreno: "Avalúo terreno", avaluo_comercial_terreno: "Avalúo comercial terreno",
+    avaluo_construccion: "Avalúo construcciones",
   };
   const ORIGEN = { IGAC: "IGAC", "Gestor catastral": "Geoportal del gestor", Empresa: "Empresa", SNR: "SNR" };
 
@@ -243,6 +245,7 @@
     const filas = Object.entries(NOMBRES_DATOS).filter(([k]) => U.limpiar(d[k]) !== "").map(([k, n]) => {
       let v = d[k];
       if (/area_/.test(k)) v = U.formatoArea(v);
+      else if (/avaluo/.test(k) && Number.isFinite(Number(v)) && String(v).trim() !== "") v = "$" + U.formatoNumero(v, 0);
       return `<dt>${esc(n)}</dt><dd class="${/numero_predial|chip|matricula/.test(k) ? "cod" : ""}">${esc(v)}</dd>`;
     });
     return filas.length ? `<dl class="datos">${filas.join("")}</dl>` : "";

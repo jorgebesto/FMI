@@ -45,13 +45,14 @@ Las pruebas que usa, cada una con su enlace para verificarla:
 
 1. **Geoportal del gestor que publica la matrícula junto al predio.**
    - Barranquilla: todos sus predios.
+   - Catastro Antioquia (BCGS): los municipios a cargo de la Gobernación. Se busca por matrícula o por número predial.
    - Medellín: solo los inmuebles del municipio.
 2. **VUR.** La referencia catastral que el registro tiene para ese FMI, comparada con la cédula catastral del Excel.
    - Cuando el VUR trae el número nuevo (30 dígitos) y el Excel el anterior (20), la página usa como puente el catastro que publica los dos números del mismo predio: la base del IGAC, Barranquilla o el Área Metropolitana de Bucaramanga.
 3. **NUPRE.** El mismo código en el VUR y en el catastro. Lo publican Barranquilla y Medellín.
 4. **Existencia.** Que la cédula catastral del Excel exista en el catastro. Esto apoya, pero no liga la matrícula.
 
-La mayoría de los gestores (Antioquia, Cundinamarca, Valle de Aburrá, Cali, Cúcuta, etc.) no publican la matrícula en un servicio consultable. Para ellos la ficha muestra **"Confirmar a mano"** con el enlace a su geoportal. La confirmación automática sale entonces del VUR.
+La mayoría de los demás gestores (Cundinamarca, Valle de Aburrá, Cali, Cúcuta, etc.) no publican la matrícula en un servicio consultable. Para ellos la ficha muestra **"Confirmar a mano"** con el enlace a su geoportal. La confirmación automática sale entonces del VUR.
 
 ## Cómo se usa
 
@@ -106,6 +107,7 @@ La página primero averigua quién es el gestor catastral del municipio. Para es
 | Catastro Bogotá – IDECA | Gestor | Número predial, CHIP, cédula catastral | Dirección, barrio, áreas, destino, uso, polígono | Bogotá |
 | Catastro Medellín – GeoMedellín | Gestor | Número predial (30), NUPRE; matrícula de inmuebles del municipio | Dirección, destino, estrato, NUPRE, CBML, área y polígono del lote | Medellín |
 | Catastro Barranquilla – datos abiertos | Gestor | **Matrícula inmobiliaria (círculo 040)**, número predial nuevo o anterior | Estado y apertura del folio, áreas catastral y registral, destino, estrato, NUPRE, dirección, polígono | Barranquilla |
+| Catastro Antioquia – BCGS (GeoAntioquia) | Gestor | **Matrícula (CIRCULO_MATRICULA)**, número predial (NPN) | Matrícula, ficha, dirección, vereda, característica (NPH/PH), avalúo catastral y comercial del terreno, construcciones (pisos, año, avalúo), polígono. **Conectado sin poder probarlo desde aquí** | Municipios a cargo de Catastro Antioquia |
 | Área Metropolitana de Bucaramanga | Gestor | Número predial nuevo o anterior | Polígono del terreno | Bucaramanga, Girón, Piedecuesta |
 | Cali – información histórica de predios (datos abiertos) | Gestor | Número predial | Áreas, avalúo, usos (vigencia 2022). **No probado** | Cali |
 | Base catastral pública del IGAC | IGAC | **Número predial nuevo o anterior (20 dígitos)** | Dirección, destino, áreas de terreno y construida, zonas físicas y económicas, construcciones (pisos, habitaciones, baños), polígono | Municipios a cargo del IGAC |
@@ -113,7 +115,7 @@ La página primero averigua quién es el gestor catastral del municipio. Para es
 
 Con el predial anterior de 20 dígitos (la "cédula catastral" de su Excel), los municipios del IGAC se pueden investigar sin la consulta del VUR. En Barranquilla basta la matrícula.
 
-Los demás gestores (Antioquia, Cundinamarca, Valle de Aburrá, AMCO, Santa Marta, Cúcuta, Ibagué, Villavicencio, Neiva, Montería, Soacha y los municipios con catastro propio) no publican un servicio consultable. Para ellos queda el SINIC.
+Los demás gestores (Cundinamarca, Valle de Aburrá, AMCO, Santa Marta, Cúcuta, Ibagué, Villavicencio, Neiva, Montería, Soacha y los municipios con catastro propio) no publican un servicio consultable. Para ellos queda el SINIC.
 
 Para agregar otro geoportal edite `js/config.js` (sección `por_municipio`).
 

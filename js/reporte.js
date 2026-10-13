@@ -107,7 +107,8 @@
     const camposCat = ["numero_predial", "departamento", "municipio", "zona", "tipo_predio", "condicion_predio", "tipo_derecho",
       "destino_economico", "area_terreno_m2", "area_construida_m2", "vigencia", "nombre_predio", "chip", "cedula_catastral",
       "direccion", "barrio", "codigo_local", "numero_predial_anterior", "matricula_inmobiliaria", "estado_fmi", "fecha_apertura_fmi",
-      "area_registral_m2", "estrato", "zona_fisica", "zona_economica", "construcciones", "area_poligono_m2", "avaluo", "uso"];
+      "area_registral_m2", "estrato", "zona_fisica", "zona_economica", "construcciones", "area_poligono_m2", "avaluo", "uso",
+      "ficha", "vereda", "sector", "avaluo_terreno", "avaluo_comercial_terreno", "avaluo_construccion"];
     hojas.push({
       nombre: "Catastro",
       columnas: ["Matrícula", "Fuente", "Origen", "Estado", "Mensaje", "Enlace para confirmar", ...camposCat, "Latitud", "Longitud"],
