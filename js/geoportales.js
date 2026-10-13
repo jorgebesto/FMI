@@ -262,6 +262,43 @@
     return r;
   }
 
+  /* ---------------- Cali (capa de predios del Distrito) ---------------- */
+  async function cali(cfg, claves) {
+    const s = A().sql;
+    const cond = [];
+    if (claves.predial30) cond.push(`NPN = ${s(claves.predial30)}`);
+    // Código local de Cali (tipo B001300190000) que puede venir en el Excel o en el VUR
+    for (const c of claves.cedulas) {
+      const local = c.replace(/[\s-]/g, "").toUpperCase();
+      if (/^[A-Z]\d{6,}$/.test(local)) cond.push(`NUM_PREDIAL = ${s(local)}`);
+    }
+    if (!cond.length) return resultado("sin_datos", cfg, { mensaje: "Hace falta el NPN de 30 dígitos o el número predial local de Cali." });
+    const params = { where: cond.join(" OR ") };
+    const enlaces = [consultaHtml("Ver la búsqueda en Catastro Cali", cfg.predio, params)];
+    const js = await A().query(cfg.predio, { ...params, returnGeometry: "true", outSR: 4326 });
+    const feats = js.features || [];
+    if (!feats.length) return resultado("no_encontrado", cfg, { mensaje: "Catastro Cali no devolvió el predio.", enlaces });
+    const f = feats.find((x) => campo(x.attributes, "NPN") === claves.predial30) || feats[0];
+    const a = f.attributes;
+    const datos = {
+      numero_predial: U.limpiar(campo(a, "NPN")),
+      codigo_local: U.limpiar(campo(a, "NUM_PREDIAL")),
+      id_predio: U.limpiar(campo(a, "ID_PREDIO")),
+      comuna: U.limpiar(campo(a, "COMUNA_ID")),
+      barrio: U.limpiar(campo(a, "BARRIO_ID")),
+      manzana: U.limpiar(campo(a, "MANZANA_ID")),
+      terreno: U.limpiar(campo(a, "TERRENO_ID")),
+      condicion_predio: U.limpiar(campo(a, "CONDPRED")),
+      edificio: U.limpiar(campo(a, "EDIFPRED")),
+      piso: U.limpiar(campo(a, "PISOPRED")),
+      tipo_avaluo: U.limpiar(campo(a, "TIPO_AVALUO")),
+    };
+    const r = resultado("ok", cfg, { datos, crudo: a, enlaces,
+      mensaje: "Predio encontrado." + (feats.length > 1 ? ` Hubo ${feats.length} coincidencias; se muestra la primera.` : "") });
+    ponerGeometria(r, f.geometry);
+    return r;
+  }
+
   /* ---------------- Catastro Antioquia (BCGS) ---------------- */
   // Lee un atributo sin importar mayúsculas ni tildes del nombre del campo
   function campo(a, ...nombres) {
@@ -452,7 +489,7 @@
       else if (!gestor.Gestor && /^05/.test(dane || "") && C.por_gestor && C.por_gestor["CATASTRO ANTIOQUIA"]) local = C.por_gestor["CATASTRO ANTIOQUIA"];
     }
     if (local) {
-      const fn = { bogota, barranquilla, medellin, capas, ckan, antioquia }[local.conector];
+      const fn = { bogota, barranquilla, medellin, capas, ckan, antioquia, cali }[local.conector];
       const r = fn ? await protegido(() => fn(local, claves), local) : resultado("error", local, { mensaje: "Conector desconocido" });
       fuentes.push(r);
       if (U.tipoCodigo(r.datos.numero_predial) === "nacional30" && !claves.predial30) claves.predial30 = r.datos.numero_predial;

@@ -88,9 +88,16 @@ function respuesta(url) {
   if (u.pathname.includes("BCGS_Catastro_Publico/MapServer/11/query")) return f([]);
   if (u.pathname.includes("BCGS_Catastro_Publico/MapServer/3/query"))
     return f([{ attributes: { CODIGO_CONSTRUCCION: "051720001000000260020000000000", NUMERO_PISO: 1, ANIO_CONSTRUCCION: 1995, AVALUO_CONSTRUCCION: 5000000, "SHAPE.AREA": 80 } }]);
+  if (u.pathname.includes("agserver1/rest/services/Catastro/MapServer/4/query")) {
+    if (where.includes("760010100190900150019000000000") || where.includes("B001300190000"))
+      return f([{ attributes: { ID_PREDIO: 141836, NUM_PREDIAL: "B001300190000", NPN: "760010100190900150019000000000", COMUNA_ID: "0019", BARRIO_ID: "09",
+        MANZANA_ID: "0015", TERRENO_ID: "0019", CONDPRED: "0", TIPO_AVALUO: "01" }, geometry: { rings: [[[-76.55, 3.43], [-76.549, 3.43], [-76.549, 3.431], [-76.55, 3.43]]] } }]);
+    return f([]);
+  }
   if (u.pathname.includes("CAPA_GESTORES"))
     return f([
       { attributes: { mpio_cdpmp: "05172", dpto_cnmbr: "ANTIOQUIA", mpio_cnmbr: "CHIGORODÓ", Gestor: "Catastro Antioquia", CORREOS_JU: "catastro@ejemplo.gov.co" } },
+      { attributes: { mpio_cdpmp: "76001", dpto_cnmbr: "VALLE DEL CAUCA", mpio_cnmbr: "SANTIAGO DE CALI", Gestor: "Catastro Municipal de Cali" } },
       { attributes: { mpio_cdpmp: "05999", dpto_cnmbr: "ANTIOQUIA", mpio_cnmbr: "SIN SERVICIO", Gestor: "Municipio de Prueba" } },
       { attributes: { mpio_cdpmp: "05001", dpto_cnmbr: "ANTIOQUIA", mpio_cnmbr: "MEDELLÍN", Gestor: "MEDELLIN" } },
       { attributes: { mpio_cdpmp: "11001", dpto_cnmbr: "BOGOTÁ, D.C.", mpio_cnmbr: "BOGOTÁ, D.C.", Gestor: "UAECD" } },
@@ -215,6 +222,18 @@ assert.equal(soloMat.fuentes[0].estado, "ok");
 assert.match(soloMat.fuentes[0].mensaje, /por matrícula/);
 assert.equal(soloMat.claves.predial30, "051720001000000260020000000000");
 assert.ok(soloMat.fuentes.some((x) => x.fuente.startsWith("SINIC") && x.estado === "ok"));
+// Cali: por NPN y por el código local del Excel
+const cali1 = await IP.consultarCatastro({ referencia_catastral: "760010100190900150019000000000", codigo_dane: "76001" }, null, "370-1");
+assert.equal(cali1.fuentes[0].fuente, "Catastro Cali – ArcGIS del Distrito");
+assert.equal(cali1.fuentes[0].estado, "ok");
+assert.equal(cali1.datos.codigo_local, "B001300190000");
+assert.ok(cali1.lat > 3);
+const cali2 = await IP.consultarCatastro(null, { cedula_catastral: "B001300190000", municipio: "SANTIAGO DE CALI", departamento: "VALLE DEL CAUCA" }, "370-1");
+assert.equal(cali2.fuentes[0].estado, "ok");
+assert.equal(cali2.claves.predial30, "760010100190900150019000000000");
+// Puente en Cali: Excel con el código local y VUR con el NPN -> Catastro Cali dice que son el mismo predio
+const vurCali = { matricula_normalizada: "370-1", referencia_catastral: "760010100190900150019000000000" };
+assert.equal(IP.confirmarFMI({ matricula: "370-1", registro: { cedula_catastral: "B001300190000" }, vur: vurCali, catastro: cali2 }).veredicto, "confirmado");
 // Gestor sin servicio consultable -> confirmar a mano
 const sinServ = await IP.consultarCatastro({ referencia_catastral: "059990001000000260020000000000", codigo_dane: "05999" }, null, "999-1");
 assert.equal(sinServ.fuentes[0].estado, "manual");

@@ -27,7 +27,7 @@
   }
   IP.relacionCodigos = relacion;
 
-  const codigosDe = (d) => [d.numero_predial, d.numero_predial_anterior, d.chip, d.cedula_catastral].map(U.limpiar).filter(Boolean);
+  const codigosDe = (d) => [d.numero_predial, d.numero_predial_anterior, d.chip, d.cedula_catastral, d.codigo_local].map(U.limpiar).filter(Boolean);
   const mismaMatricula = (a, b) => {
     const na = U.normalizarMatricula(a), nb = U.normalizarMatricula(b);
     if (!na || !nb) return null;

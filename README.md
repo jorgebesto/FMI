@@ -109,7 +109,7 @@ La página primero averigua quién es el gestor catastral del municipio. Para es
 | Catastro Barranquilla – datos abiertos | Gestor | **Matrícula inmobiliaria (círculo 040)**, número predial nuevo o anterior | Estado y apertura del folio, áreas catastral y registral, destino, estrato, NUPRE, dirección, polígono | Barranquilla |
 | Catastro Antioquia – BCGS (GeoAntioquia) | Gestor | **Matrícula (CIRCULO_MATRICULA)**, número predial (NPN) | Matrícula, ficha, dirección, vereda, característica (NPH/PH), avalúo catastral y comercial del terreno, construcciones (pisos, año, avalúo), polígono. **Conectado sin poder probarlo desde aquí** | Municipios a cargo de Catastro Antioquia |
 | Área Metropolitana de Bucaramanga | Gestor | Número predial nuevo o anterior | Polígono del terreno | Bucaramanga, Girón, Piedecuesta |
-| Cali – información histórica de predios (datos abiertos) | Gestor | Número predial | Áreas, avalúo, usos (vigencia 2022). **No probado** | Cali |
+| Catastro Cali – ArcGIS del Distrito | Gestor | NPN (30) o número predial local (tipo B001300190000) | ID del predio, código local, comuna, barrio, manzana, terreno, condición, edificio, piso, polígono. No trae matrícula. **Conectado sin poder probarlo desde aquí** | Cali |
 | Base catastral pública del IGAC | IGAC | **Número predial nuevo o anterior (20 dígitos)** | Dirección, destino, áreas de terreno y construida, zonas físicas y económicas, construcciones (pisos, habitaciones, baños), polígono | Municipios a cargo del IGAC |
 | SINIC – IGAC | IGAC | Número predial nacional (30) | Tipo y condición del predio, destino, área catastral, zona, vigencia, tipo de derecho, polígono | Todo el país |
 

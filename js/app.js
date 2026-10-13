@@ -14,7 +14,8 @@
     nombre_predio: "Nombre", chip: "CHIP", cedula_catastral: "Cédula catastral", direccion: "Dirección", barrio: "Barrio",
     uso: "Uso", vetustez: "Vetustez", avaluo: "Avalúo", nupre: "NUPRE", codigo_local: "Código local", tipo_lote: "Tipo de lote",
     ficha: "Ficha predial", vereda: "Vereda", sector: "Sector", avaluo_terreno: "Avalúo terreno", avaluo_comercial_terreno: "Avalúo comercial terreno",
-    avaluo_construccion: "Avalúo construcciones",
+    avaluo_construccion: "Avalúo construcciones", id_predio: "ID predio", comuna: "Comuna", manzana: "Manzana", terreno: "Terreno",
+    edificio: "Edificio", piso: "Piso", tipo_avaluo: "Tipo de avalúo",
   };
   const ORIGEN = { IGAC: "IGAC", "Gestor catastral": "Geoportal del gestor", Empresa: "Empresa", SNR: "SNR" };
 
