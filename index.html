@@ -57,6 +57,17 @@
     </section>
 
     <section class="panel">
+      <h2>Catastro en línea (Ibagué)</h2>
+      <p class="ayuda">Ibagué y otros gestores usan la plataforma <b>Catastro en línea</b>, que no deja que otra página la consulte. Sus datos (matrícula ↔ número predial, avalúo, áreas, construcciones y propietarios) se traen con un marcador del navegador:</p>
+      <ol class="ayuda pasos-cel">
+        <li>Arrastre este botón a la barra de marcadores (solo la primera vez): <a id="marcadorCel" class="marcador" href="#">Traer de Catastro en línea</a> <span id="marcadorNota" class="nota"></span></li>
+        <li>En la ficha del predio presione <b>Copiar pedido</b> y luego <b>Abrir el sitio</b>.</li>
+        <li>En el sitio haga clic en el marcador, pegue el pedido y presione Aceptar.</li>
+        <li>Los datos vuelven solos a esta página y la ficha se actualiza.</li>
+      </ol>
+    </section>
+
+    <section class="panel">
       <h2>Matrículas guardadas</h2>
       <p class="ayuda">Consultas del VUR guardadas en este navegador. Clic para ver la ficha.</p>
       <ul id="historial" class="historial"><li class="nota">Todavía no hay consultas guardadas</li></ul>
@@ -128,6 +139,7 @@
     <div class="barra">
       <h2>Resultados de varios predios</h2>
       <div class="fila">
+        <button type="button" id="lotePedidoCel" class="secundario" hidden>Copiar pedido para Catastro en línea</button>
         <button type="button" id="loteDescargar" hidden>Descargar Excel</button>
         <button type="button" id="loteLimpiar" class="secundario" hidden>Limpiar</button>
       </div>
@@ -140,8 +152,8 @@
 
 <footer class="pie">
   El Excel y las consultas del VUR se guardan solo en este navegador; no se envían a ningún servidor.
-  Al catastro solo se envía el número predial (y la matrícula en Barranquilla). Fuentes: IGAC (SINIC, base catastral pública y directorio de gestores),
-  Catastro Bogotá (IDECA), Catastro Medellín, Catastro Barranquilla, Área Metropolitana de Bucaramanga y datos abiertos de Cali.
+  Al catastro solo se envía el número predial y la matrícula (Barranquilla, Antioquia, y Catastro en línea con el marcador). Fuentes: IGAC (SINIC, base catastral pública y directorio de gestores),
+  Catastro Bogotá (IDECA), Catastro Medellín, Catastro Barranquilla, Catastro Antioquia, Área Metropolitana de Bucaramanga, Catastro Cali y Catastro Ibagué (Catastro en línea).
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -150,6 +162,7 @@
 <script src="js/xlsx.js"></script>
 <script src="js/excel.js"></script>
 <script src="js/config.js"></script>
+<script src="js/catastroenlinea.js"></script>
 <script src="js/arcgis.js"></script>
 <script src="js/gestores.js"></script>
 <script src="js/geoportales.js"></script>

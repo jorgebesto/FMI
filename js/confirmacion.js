@@ -129,8 +129,10 @@
       if (!vur) rec.push("Pegue la consulta del VUR de esta matrícula: ahí aparece la referencia catastral del folio.");
       if (!ced) rec.push("El Excel no trae cédula catastral para esta matrícula.");
       const manual = ((catastro && catastro.fuentes) || []).find((f) => f.estado === "manual");
+      const pendiente = ((catastro && catastro.fuentes) || []).find((f) => f.estado === "pendiente");
       if (manual) rec.push(`${manual.fuente.replace("Geoportal de ", "El gestor ")} no publica la matrícula en un servicio consultable: confírmela en su geoportal o con el certificado catastral.`);
-      if (!manual && !pruebas.some((p) => p.fuente !== "VUR" && (p.resultado === "confirma" || p.resultado === "contradice")))
+      if (pendiente) rec.push(`Traiga el predio de ${pendiente.fuente} con el marcador “Traer de Catastro en línea”: ese geoportal liga la matrícula con el número predial y con eso se confirma el FMI.`);
+      if (!manual && !pendiente && !pruebas.some((p) => p.fuente !== "VUR" && (p.resultado === "confirma" || p.resultado === "contradice")))
         rec.push("El catastro de este municipio no publica la matrícula; la confirmación sale del VUR.");
     }
     return { veredicto, titulo, pruebas, recomendacion: rec.join(" "), cedula_excel: ced };

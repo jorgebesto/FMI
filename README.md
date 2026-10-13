@@ -47,6 +47,7 @@ Las pruebas que usa, cada una con su enlace para verificarla:
    - Barranquilla: todos sus predios.
    - Catastro Antioquia (BCGS): los municipios a cargo de la Gobernación. Se busca por matrícula o por número predial.
    - Medellín: solo los inmuebles del municipio.
+   - Ibagué y los demás sitios de **Catastro en línea**: se busca por matrícula y el sitio devuelve el número predial (se trae con el marcador, ver abajo).
 2. **VUR.** La referencia catastral que el registro tiene para ese FMI, comparada con la cédula catastral del Excel.
    - Cuando el VUR trae el número nuevo (30 dígitos) y el Excel el anterior (20), la página usa como puente el catastro que publica los dos números del mismo predio: la base del IGAC, Barranquilla o el Área Metropolitana de Bucaramanga.
 3. **NUPRE.** El mismo código en el VUR y en el catastro. Lo publican Barranquilla y Medellín.
@@ -98,6 +99,21 @@ La página tiene dos pestañas: **Un predio** y **Varios predios**.
    - las alertas.
 4. **Ver ficha** abre la ficha completa de ese predio en la otra pestaña. **Descargar Excel** baja el resultado de todos los predios.
 
+### Catastro en línea (Ibagué) con el marcador
+
+Ibagué publica su catastro en la plataforma **Catastro en línea** (`ibaguemultiproposito.com.co`; la misma plataforma está en `catastroenlinea.com.co`). Esa plataforma busca por matrícula y devuelve el número predial, el avalúo, las áreas, las zonas, las construcciones y los propietarios. Pero no deja que otra página la consulte: el sitio de Ibagué es `http` y su `https` tiene un certificado inválido, y el navegador bloquea esas llamadas desde GitHub Pages.
+
+Por eso se usa un **marcador** del navegador, que hace la búsqueda dentro del propio sitio:
+
+1. **Una sola vez:** en el panel "Catastro en línea", arrastre el botón **Traer de Catastro en línea** a la barra de marcadores. Ctrl+Shift+B muestra la barra. Tiene que arrastrarlo desde la página publicada: el marcador guarda la dirección de su página para devolver ahí los datos.
+2. Cuando la ficha de un predio de Ibagué diga **"Falta traerlo con el marcador"**, presione **Copiar pedido** y luego **Abrir el sitio**. En la pestaña Varios predios está el botón **Copiar pedido para Catastro en línea**, que junta todas las pendientes.
+3. En el sitio de Catastro en línea haga clic en el marcador, pegue el pedido y presione Aceptar. El pedido es el código DANE y las matrículas, por ejemplo `73001 350-12345 350-1234`.
+4. El marcador busca cada matrícula y abre esta página con el resultado. La página lo guarda en el navegador y actualiza las fichas.
+
+El resultado queda guardado en ese navegador. Para traerlo de nuevo (por ejemplo, si cambió algo en el catastro) repita el paso 3.
+
+Para otro municipio de la plataforma, escriba su código DANE al inicio del pedido. Por ejemplo, Jamundí sería `76364 370-14114`. Si el municipio no está en `js/config.js`, la ficha muestra el resultado igual, como "Catastro en línea – (sitio)".
+
 ## De dónde sale la información del catastro
 
 La página primero averigua quién es el gestor catastral del municipio. Para eso usa el código DANE del número predial y el directorio oficial del IGAC. Luego consulta, en este orden:
@@ -108,6 +124,7 @@ La página primero averigua quién es el gestor catastral del municipio. Para es
 | Catastro Medellín – GeoMedellín | Gestor | Número predial (30), NUPRE; matrícula de inmuebles del municipio | Dirección, destino, estrato, NUPRE, CBML, área y polígono del lote | Medellín |
 | Catastro Barranquilla – datos abiertos | Gestor | **Matrícula inmobiliaria (círculo 040)**, número predial nuevo o anterior | Estado y apertura del folio, áreas catastral y registral, destino, estrato, NUPRE, dirección, polígono | Barranquilla |
 | Catastro Antioquia – BCGS (GeoAntioquia) | Gestor | **Matrícula (CIRCULO_MATRICULA)**, número predial (NPN) | Matrícula, ficha, dirección, vereda, característica (NPH/PH), avalúo catastral y comercial del terreno, construcciones (pisos, año, avalúo), polígono. **Conectado sin poder probarlo desde aquí** | Municipios a cargo de Catastro Antioquia |
+| Catastro Ibagué – Catastro en línea | Gestor | **Matrícula inmobiliaria** (con el marcador) | Número predial, destino, avalúo (terreno y construcciones), áreas de terreno y construida, dirección, zonas físicas y económicas, construcciones, **propietarios**, código homologado | Ibagué (y otros sitios de la plataforma) |
 | Área Metropolitana de Bucaramanga | Gestor | Número predial nuevo o anterior | Polígono del terreno | Bucaramanga, Girón, Piedecuesta |
 | Catastro Cali – ArcGIS del Distrito | Gestor | NPN (30) o número predial local (tipo B001300190000) | ID del predio, código local, comuna, barrio, manzana, terreno, condición, edificio, piso, polígono. No trae matrícula. **Conectado sin poder probarlo desde aquí** | Cali |
 | Base catastral pública del IGAC | IGAC | **Número predial nuevo o anterior (20 dígitos)** | Dirección, destino, áreas de terreno y construida, zonas físicas y económicas, construcciones (pisos, habitaciones, baños), polígono | Municipios a cargo del IGAC |
@@ -121,7 +138,7 @@ Para agregar otro geoportal edite `js/config.js` (sección `por_municipio`).
 
 ## Cosas a tener en cuenta
 
-- **Propietarios:** el catastro público no publica propietarios, así que solo salen del VUR.
+- **Propietarios:** casi ningún catastro público publica propietarios, así que salen del VUR. Catastro en línea sí los publica: la ficha los compara con los del VUR por número de documento. Si no coinciden queda en "Revisar", porque el catastro puede no estar al día con el registro.
   - Si hubo ventas parciales, el VUR solo muestra a quienes intervinieron en la última.
   - Si hay usufructo, muestra a los beneficiarios.
 - **Áreas:** la cabida del VUR se lee del texto (ha, m², varas, fanegadas, plazas, cuadras). Al compararla con el catastro:
@@ -143,6 +160,7 @@ js/vur.js           lector de la consulta del VUR (texto y PDF)
 js/xlsx.js          lectura y escritura de .xlsx sin librerías
 js/excel.js         Excel de la empresa y búsqueda por FMI
 js/config.js        fuentes del catastro (aquí se agregan geoportales)
+js/catastroenlinea.js  marcador de Catastro en línea y lectura de lo que trae
 js/arcgis.js        consultas a servicios ArcGIS (fetch y JSONP)
 js/gestores.js      directorio de gestores catastrales del IGAC
 js/geoportales.js   SINIC, base pública IGAC, Bogotá, Medellín, Barranquilla, AMB, Cali

@@ -4,7 +4,7 @@
   const U = IP.util;
   const VEREDICTO = { ok: "Sin diferencias", revisar: "Revisar", diferente: "Con diferencias", sin_dato: "Sin contraste" };
   const ESTADO = { ok: "Coincide", revisar: "Revisar", diferente: "Diferente", sin_dato: "—" };
-  const CAT = { ok: "Encontrado", no_encontrado: "No encontrado", sin_datos: "Sin código para buscar", error: "Error", omitido: "No consultado", manual: "Confirmar a mano" };
+  const CAT = { ok: "Encontrado", no_encontrado: "No encontrado", sin_datos: "Sin código para buscar", error: "Error", omitido: "No consultado", manual: "Confirmar a mano", pendiente: "Falta traerlo con el marcador" };
   IP.textos = { VEREDICTO, ESTADO, CAT };
   // Lista corta de las fuentes catastrales donde sí apareció el predio
   IP.encontradoEn = (f) => (f.catastro.fuentes || []).filter((x) => x.estado === "ok").map((x) => `${x.fuente} (${x.origen === "IGAC" ? "IGAC" : "gestor"})`).join("; ");
@@ -109,7 +109,8 @@
       "direccion", "barrio", "codigo_local", "numero_predial_anterior", "matricula_inmobiliaria", "estado_fmi", "fecha_apertura_fmi",
       "area_registral_m2", "estrato", "zona_fisica", "zona_economica", "construcciones", "area_poligono_m2", "avaluo", "uso",
       "ficha", "vereda", "sector", "avaluo_terreno", "avaluo_comercial_terreno", "avaluo_construccion",
-      "id_predio", "comuna", "manzana", "terreno", "edificio", "piso", "tipo_avaluo"];
+      "id_predio", "comuna", "manzana", "terreno", "edificio", "piso", "tipo_avaluo",
+      "propietarios_catastro", "codigo_homologado", "tipo_catastro", "coeficiente", "es_matriz"];
     hojas.push({
       nombre: "Catastro",
       columnas: ["Matrícula", "Fuente", "Origen", "Estado", "Mensaje", "Enlace para confirmar", ...camposCat, "Latitud", "Longitud"],

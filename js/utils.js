@@ -47,12 +47,15 @@
     const s = U.limpiar(codigo).replace(/\s+/g, "");
     if (!s) return "";
     if (/^AAA\w{8}$/i.test(s)) return "chip";
-    if (/^\d{30}$/.test(s)) return "nacional30";
-    if (/^\d{20}$/.test(s)) return "anterior20";
+    // También con guiones o puntos, como lo escriben algunos catastros: 73-001-00-03-...
+    const d = /^[\d.\-]+$/.test(s) ? s.replace(/[.\-]/g, "") : s;
+    if (/^\d{30}$/.test(d)) return "nacional30";
+    if (/^\d{20}$/.test(d)) return "anterior20";
     return "otro";
   };
   U.codigoDane = function (predial) {
-    const s = U.limpiar(predial).replace(/\s+/g, "");
+    let s = U.limpiar(predial).replace(/\s+/g, "");
+    if (/^[\d.\-]+$/.test(s)) s = s.replace(/[.\-]/g, "");
     return /^\d{20}$|^\d{30}$/.test(s) ? s.slice(0, 5) : "";
   };
   U.codigosIguales = function (a, b) {

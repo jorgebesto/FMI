@@ -171,3 +171,11 @@ table.tabla-lote td .nota { display: block; margin-top: 3px; }
 table.tabla-lote td.col-fuentes { min-width: 230px; }
 table.tabla-lote td.cod { font-size: 11px; }
 table.tabla-lote .insignia { white-space: nowrap; display: inline-block; }
+
+/* Catastro en línea: marcador y pedido */
+.pasos-cel { padding-left: 18px; margin: 6px 0 0; }
+.pasos-cel li { margin-bottom: 6px; }
+a.marcador { display: inline-block; padding: 3px 10px; border: 1px dashed var(--linea); border-radius: 6px; background: var(--gris-f);
+  color: var(--tinta); font-weight: 600; text-decoration: none; cursor: grab; }
+.pedido-cel { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; }
+.pedido-cel code { background: #fff; border: 1px solid var(--linea); border-radius: 4px; padding: 1px 6px; overflow-wrap: anywhere; }

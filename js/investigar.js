@@ -53,7 +53,7 @@
       enlaces: [{ texto: "Abrir el VUR", url: E.vur }, { texto: "Certificado de tradición (SNR)", url: E.certificado }],
     });
     for (const f of catastro.fuentes || [])
-      donde.push({ fuente: f.fuente, origen: f.origen, estado: f.estado, detalle: f.pagina + (f.mensaje ? " — " + f.mensaje : ""), enlaces: [...(f.enlaces || []), ...(f.visor ? [{ texto: "Abrir el visor", url: f.visor }] : [])], no_probado: f.no_probado });
+      donde.push({ fuente: f.fuente, origen: f.origen, estado: f.estado, detalle: f.pagina + (f.mensaje ? " — " + f.mensaje : ""), enlaces: [...(f.enlaces || []), ...(f.visor && !(f.enlaces || []).some((e) => e.url === f.visor) ? [{ texto: "Abrir el visor", url: f.visor }] : [])], no_probado: f.no_probado });
 
     return {
       donde, confirmacion,

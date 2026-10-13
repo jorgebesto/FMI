@@ -15,7 +15,8 @@
     uso: "Uso", vetustez: "Vetustez", avaluo: "Avalúo", nupre: "NUPRE", codigo_local: "Código local", tipo_lote: "Tipo de lote",
     ficha: "Ficha predial", vereda: "Vereda", sector: "Sector", avaluo_terreno: "Avalúo terreno", avaluo_comercial_terreno: "Avalúo comercial terreno",
     avaluo_construccion: "Avalúo construcciones", id_predio: "ID predio", comuna: "Comuna", manzana: "Manzana", terreno: "Terreno",
-    edificio: "Edificio", piso: "Piso", tipo_avaluo: "Tipo de avalúo",
+    edificio: "Edificio", piso: "Piso", tipo_avaluo: "Tipo de avalúo", propietarios_catastro: "Propietarios (catastro)",
+    codigo_homologado: "Código homologado", tipo_catastro: "Tipo de catastro", coeficiente: "Coeficiente", es_matriz: "Predio matriz",
   };
   const ORIGEN = { IGAC: "IGAC", "Gestor catastral": "Geoportal del gestor", Empresa: "Empresa", SNR: "SNR" };
 
@@ -284,6 +285,9 @@
       || `<tr><td class="nota">${f.vur ? "Sin propietarios en la consulta" : "Sin consulta del VUR"}</td></tr>`;
     const fuentes = (c.fuentes || []).map((s) => `<div class="caja"><div class="tit"><span>${esc(s.fuente)}</span><span class="est ${s.estado === "ok" ? "ok" : "no"}">${esc(T.CAT[s.estado] || s.estado)}</span></div>
         ${chipOrigen(s.origen)} <span class="nota">${esc(s.mensaje)}</span>${datosCatastro(s.datos || {})}
+        ${s.cel_pedido ? `<div class="pedido-cel"><span>Pedido:</span> <code>${esc(s.cel_pedido)}</code>
+          <button type="button" class="mini" data-copiar="${esc(s.cel_pedido)}">Copiar pedido</button>
+          ${a(s.enlaces[0] && s.enlaces[0].url, "Abrir el sitio")}</div>` : ""}
         ${(s.enlaces || [])[0] ? `<div class="conf">${a(s.enlaces[0].url, "Confirmar en la página")}</div>` : ""}</div>`).join("")
       || `<div class="caja"><div class="tit">Catastro</div><div class="nota">${c.estado === "omitido" ? "Consulta al catastro desactivada" : "Sin datos para consultar"}</div></div>`;
     const contacto = [gi.NOMBRE_DE_, gi.RESPONSABL, gi.CARGO, gi.GESTOR_DIR, gi.CORREOS_JU].filter(Boolean).map(esc).join("<br>");
@@ -431,7 +435,7 @@
     const encontrados = (f.catastro.fuentes || []).map((s) => {
       const conf = ((s.enlaces || [])[0] || {}).url;
       const corto = s.fuente.split(" – ")[0].replace(/^Base catastral pública del IGAC.*/, "Base pública IGAC");
-      const txt = `${s.estado === "ok" ? "✓" : s.estado === "manual" ? "→" : "✗"} ${corto}${s.estado === "manual" ? " (confirmar a mano)" : ""}`;
+      const txt = `${s.estado === "ok" ? "✓" : s.estado === "manual" || s.estado === "pendiente" ? "→" : "✗"} ${corto}${s.estado === "manual" ? " (confirmar a mano)" : s.estado === "pendiente" ? " (traer con el marcador)" : ""}`;
       return `<span class="fuente-lote ${s.estado === "ok" ? "si" : "no"}">${conf ? `<a href="${esc(conf)}" target="_blank" rel="noopener" title="Confirmar la búsqueda">${esc(txt)}</a>` : esc(txt)} ${chipOrigen(s.origen)}</span>`;
     }).join("");
     return `<tr><td>${i + 1}</td><td class="cod">${esc(f.matricula)}</td>
@@ -448,12 +452,26 @@
     $("#loteDescargar").hidden = !n || E.loteCorriendo;
     $("#loteLimpiar").hidden = !n || E.loteCorriendo;
     $("#loteResumen").textContent = n ? resumenLote() : "";
+    const pend = pendientesCel(E.lote);
+    $("#lotePedidoCel").hidden = !pend.length || E.loteCorriendo;
+    $("#lotePedidoCel").textContent = `Copiar pedido para Catastro en línea (${pend.length})`;
     $("#loteTabla").innerHTML = n
       ? `<table class="tabla-lote"><thead><tr><th>#</th><th>Matrícula</th><th>Municipio / encargado</th><th>FMI ↔ cédula catastral</th><th>Contraste</th><th>Predial</th><th>Encontrado en (clic para confirmar)</th><th></th></tr></thead>
          <tbody>${E.lote.map(filaLote).join("")}</tbody></table>`
       : `<div class="vacio"><p>Escriba o pegue las matrículas (una por línea), o agréguelas desde el Excel, y presione <b>Investigar todas</b>.</p>
          <p class="nota">También puede pegar varias consultas del VUR seguidas: se guardan y se investigan juntas.</p></div>`;
   }
+  // Matrículas cuyo catastro (Catastro en línea) hay que traer con el marcador
+  function pendientesCel(fichas) {
+    return fichas.filter((f) => !f.error).flatMap((f) => (f.catastro.fuentes || []).filter((s) => s.cel_pedido)
+      .map(() => ({ dane: f.catastro.codigo_dane, matricula: f.matricula })));
+  }
+  $("#lotePedidoCel").addEventListener("click", async () => {
+    const txt = IP.cel.pedido(pendientesCel(E.lote));
+    try { await navigator.clipboard.writeText(txt); aviso("Pedido copiado. Péguelo en el marcador, en el sitio de Catastro en línea."); }
+    catch (e) { prompt("Copie el pedido:", txt); }
+  });
+
   function resumenLote() {
     const ok = E.lote.filter((f) => !f.error);
     const cuenta = (k) => ok.filter((f) => f.resumen.veredicto === k).length;
@@ -542,7 +560,50 @@
     abrirDesdeEnlace();
     window.addEventListener("hashchange", abrirDesdeEnlace);
   })();
-  function abrirDesdeEnlace() {
+
+  /* ---------------- Catastro en línea (marcador) ---------------- */
+  window.name = "investigador_predios"; // el marcador vuelve a esta pestaña cuando el navegador lo permite
+  (function prepararMarcador() {
+    const m = $("#marcadorCel");
+    if (!m) return;
+    if (!/^https?:$/.test(location.protocol)) {
+      m.removeAttribute("href");
+      $("#marcadorNota").textContent = "El marcador solo sirve desde la página publicada (GitHub Pages), no abriendo el archivo en el computador.";
+      return;
+    }
+    m.href = IP.cel.marcador(location.origin + location.pathname);
+    m.addEventListener("click", (ev) => { ev.preventDefault(); aviso("Arrástrelo a la barra de marcadores (Ctrl+Shift+B la muestra)"); });
+  })();
+  async function recibirCatastroEnLinea() {
+    let regs;
+    try { regs = IP.cel.desdeHash(location.hash); }
+    catch (e) { history.replaceState(null, "", location.pathname); aviso("No se pudo leer lo que llegó de Catastro en línea: " + e.message); return true; }
+    if (!regs) return false;
+    history.replaceState(null, "", location.pathname); // la dirección no se queda con los datos
+    for (const r of regs) await IP.almacen.guardarCel(r);
+    const ms = regs.map((r) => r.matricula);
+    const encontrados = regs.filter((r) => (r.predios || []).length).length;
+    aviso(`Llegaron ${regs.length} matrícula(s) de Catastro en línea; ${encontrados} con predio`);
+    let hecho = false;
+    const cat = $("#loteCatastro").checked;
+    for (let i = 0; i < E.lote.length; i++)
+      if (ms.includes(E.lote[i].matricula)) { E.lote[i] = await IP.investigarMatricula(E.lote[i].matricula, opciones(undefined, cat)); hecho = true; }
+    if (hecho) { pintarLote(); pestana("varios"); }
+    if (E.fichas.some((f) => ms.includes(f.matricula))) {
+      for (let i = 0; i < E.fichas.length; i++)
+        if (ms.includes(E.fichas[i].matricula)) E.fichas[i] = await IP.investigarMatricula(E.fichas[i].matricula, opciones(undefined, $("#catastro").checked));
+      pintarFichas();
+      if (!hecho) pestana("uno");
+      hecho = true;
+    }
+    if (!hecho) {
+      if (ms.length === 1) buscar(ms[0]);
+      else { pestana("varios"); $("#loteTexto").value = ms.join("\n"); $("#loteTexto").dispatchEvent(new Event("input")); $("#loteIniciar").click(); }
+    }
+    return true;
+  }
+  async function abrirDesdeEnlace() {
+    if (await recibirCatastroEnLinea()) return;
     const m = decodeURIComponent((location.hash.match(/m=([^&]+)/) || [])[1] || "");
     if (m && !(E.fichas[0] && E.fichas[0].matricula === U.normalizarMatricula(m))) buscar(m);
   }

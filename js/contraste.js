@@ -121,6 +121,23 @@
       filas.push(fila("Estado del folio", "", vur.estado_folio, cd.estado_fmi, activos.every((x) => U.normalizar(x) === "ACTIVO") ? OK : REVISAR));
     }
 
+    // Propietarios: solo algunos catastros los publican (p. ej. Catastro en línea). Se comparan por número de documento.
+    if (U.limpiar(cd.propietarios_catastro)) {
+      const docsCat = [...String(cd.propietarios_catastro).matchAll(/\([A-Za-z]{1,4}\s+([\d.\-]+)\)/g)].map((m) => U.soloDigitos(m[1]).replace(/^0+/, "")).filter(Boolean);
+      const docsVur = (vur.propietarios || []).map((p) => U.soloDigitos(p.documento).replace(/^0+/, "")).filter(Boolean);
+      let est = SIN, nota = "";
+      if (docsVur.length && docsCat.length) {
+        const comunes = docsVur.filter((d) => docsCat.includes(d)).length;
+        if (comunes === docsVur.length && comunes === docsCat.length) est = OK;
+        else { est = REVISAR; nota = `${comunes} de ${docsVur.length} documento(s) del VUR están en el catastro; el catastro puede no estar al día con el registro`; }
+      } else if (U.limpiar(vur.propietarios_texto)) {
+        const nombresCat = String(cd.propietarios_catastro).replace(/\([^)]*\)/g, "").replace(/[\d.,]+ %/g, "");
+        [est, nota] = comparar([vur.propietarios_texto, nombresCat], texto);
+        if (est === DIFERENTE) { est = REVISAR; nota = "nombres distintos; el catastro puede no estar al día con el registro"; }
+      }
+      filas.push(fila("Propietarios", "", vur.propietarios_texto, cd.propietarios_catastro, est, nota));
+    }
+
     // De qué fuente salió cada valor de la columna Catastro
     const origen = (cat && cat.origenDatos) || {};
     const CLAVE = {
@@ -128,7 +145,7 @@
       "Número predial nacional (30)": "numero_predial", "Predial anterior / cédula catastral": cd.numero_predial_anterior ? "numero_predial_anterior" : "cedula_catastral",
       "CHIP (Bogotá)": "chip", "Código local del catastro": "codigo_local", "Urbano / rural": "zona", "Tipo / condición catastral": "tipo_predio",
       "Destino económico": "destino_economico", "Área de terreno": "area_terreno_m2", "Área registral (según catastro)": "area_registral_m2",
-      "Área construida": "area_construida_m2", "Estado del folio": "estado_fmi",
+      "Área construida": "area_construida_m2", "Estado del folio": "estado_fmi", Propietarios: "propietarios_catastro",
     };
     for (const f of filas) if (f.catastro) f.fuente_catastro = origen[CLAVE[f.campo]] || "";
 

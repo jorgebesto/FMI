@@ -49,6 +49,22 @@
       await tx("ajustes", "readwrite", (s) => s.delete("excel"));
     },
 
+    // Resultados traídos de Catastro en línea con el marcador (uno por matrícula; el último reemplaza al anterior)
+    async guardarCel(reg) {
+      const k = "cel:" + U.normalizarMatricula(reg.matricula);
+      const v = { ...reg, guardado: U.ahora() };
+      if (!(await abrir())) { memoria.ajustes.set(k, v); return v; }
+      await tx("ajustes", "readwrite", (s) => s.put(v, k));
+      return v;
+    },
+    async celDe(matricula) {
+      const k = "cel:" + U.normalizarMatricula(matricula);
+      try {
+        if (!(await abrir())) return memoria.ajustes.get(k) || null;
+        return (await tx("ajustes", "readonly", (s) => s.get(k))) || null;
+      } catch (e) { return null; }
+    },
+
     async todasVur() {
       if (!(await abrir())) return memoria.vur.slice();
       return (await tx("vur", "readonly", (s) => s.getAll())) || [];

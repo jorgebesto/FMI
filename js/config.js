@@ -59,7 +59,7 @@
         nombre: "Catastro Barranquilla – datos abiertos",
         origen: "Gestor catastral",
         pagina: "Catastro Barranquilla · Datos abiertos (miciudad.barranquilla.gov.co)",
-        circulo: "040",
+        circulo: "040", deducir_por_circulo: true,
         predio: "https://miciudad.barranquilla.gov.co/gis/rest/services/catastro/datosabiertos/FeatureServer/500",
         rel_direccion: 2,
         rel_terreno: 8,
@@ -103,6 +103,16 @@
         predio: "https://arcgisportal.cali.gov.co/agserver1/rest/services/Catastro/MapServer/4",
         no_probado: true,
         visor: "https://arcgisportal.cali.gov.co/",
+      },
+      // Catastro en línea: no deja que otra página lo consulte; se trae con el marcador (ver js/catastroenlinea.js)
+      "73001": {
+        conector: "catastroenlinea",
+        nombre: "Catastro Ibagué – Catastro en línea",
+        origen: "Gestor catastral",
+        pagina: "Alcaldía de Ibagué · Catastro multipropósito en línea (ibaguemultiproposito.com.co)",
+        sitio: "http://ibaguemultiproposito.com.co/sig.aspx",
+        circulo: "350", deducir_por_circulo: true,
+        visor: "http://ibaguemultiproposito.com.co/sig.aspx",
       },
     },
 

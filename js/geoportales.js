@@ -384,6 +384,35 @@
     return r;
   }
 
+  /* ---------------- Catastro en línea (Ibagué y otros): datos traídos con el marcador ---------------- */
+  async function catastroenlinea(cfg, claves, dane) {
+    const reg = claves.cel;
+    const sitio = (reg && reg.sitio) || cfg.sitio;
+    const nombreSitio = IP.cel.host(sitio);
+    const enlaces = [enlace(`Abrir la búsqueda predial de ${nombreSitio}`, sitio)];
+    if (!reg) {
+      if (!claves.matricula || !claves.matricula.includes("-"))
+        return resultado("sin_datos", cfg, { mensaje: "Hace falta la matrícula con su círculo (por ejemplo 350-12345).", enlaces });
+      return resultado("pendiente", cfg, {
+        mensaje: `Este geoportal no deja que otra página lo consulte. Copie el pedido, abra ${nombreSitio} y haga clic en el marcador “Traer de Catastro en línea”.`,
+        enlaces, cel_pedido: IP.cel.pedido([{ dane: dane || "", matricula: claves.matricula }]),
+      });
+    }
+    const cuando = reg.fecha ? ` (traído el ${reg.fecha.slice(0, 10)})` : "";
+    if (reg.error) return resultado("error", cfg, { mensaje: `El marcador no pudo traer la matrícula de ${nombreSitio}: ${reg.error}${cuando}`, enlaces,
+      cel_pedido: IP.cel.pedido([{ dane: reg.dane || dane || "", matricula: reg.matricula }]) });
+    if (!(reg.predios || []).length)
+      return resultado("no_encontrado", cfg, { mensaje: `${nombreSitio} no encontró la matrícula ${reg.matricula}${cuando}.`, enlaces });
+    const p = reg.predios.find((x) => U.soloDigitos(x.npn) === claves.predial30) || reg.predios[0];
+    const datos = IP.cel.datosDe(p, U.circuloDeMatricula(reg.matricula));
+    const otros = reg.predios.length > 1 ? ` La matrícula tiene ${reg.predios.length} predios: ${reg.predios.map((x) => x.npn).join(", ")}; se muestra ${p.npn}.` : "";
+    return resultado("ok", cfg, { datos, crudo: p.alfa, enlaces, mensaje: `Encontrado por matrícula en ${nombreSitio}${cuando}.${otros}` });
+  }
+  const cfgCatastroEnLinea = (reg) => ({
+    conector: "catastroenlinea", nombre: "Catastro en línea – " + IP.cel.host(reg.sitio), origen: "Gestor catastral",
+    pagina: "Catastro en línea · " + IP.cel.host(reg.sitio), sitio: reg.sitio, visor: reg.sitio,
+  });
+
   /* ---------------- Capas ArcGIS genéricas (AMB, ...) ---------------- */
   async function capas(cfg, claves) {
     const s = A().sql;
@@ -445,7 +474,7 @@
       const c = U.limpiar(c0);
       if (!c) continue;
       const t = U.tipoCodigo(c);
-      const sin = c.replace(/\s+/g, "");
+      const sin = ["nacional30", "anterior20"].includes(t) ? U.soloDigitos(c) : c.replace(/\s+/g, "");
       if (t === "nacional30") { if (!claves.predial30) claves.predial30 = sin; }
       else if (t === "anterior20") { if (!claves.predial20) claves.predial20 = sin; }
       else if (t === "chip") { if (!claves.chips.includes(sin.toUpperCase())) claves.chips.push(sin.toUpperCase()); }
@@ -470,11 +499,20 @@
     vur = vur || {};
     const C = IP.CONFIG;
     const claves = IP.clavesBusqueda(vur, excel, matricula);
+    // Datos de Catastro en línea traídos antes con el marcador
+    const cel = IP.almacen && claves.matricula ? await IP.almacen.celDe(claves.matricula) : null;
+    if (cel) {
+      claves.cel = cel;
+      const npn = U.soloDigitos(((cel.predios || [])[0] || {}).npn);
+      if (!claves.predial30 && npn.length === 30) claves.predial30 = npn;
+    }
     let dane = vur.codigo_dane || U.codigoDane(claves.predial30) || U.codigoDane(claves.predial20);
     if (!dane && claves.chips.length) dane = "11001"; // el CHIP solo existe en Bogotá
     if (!dane) dane = IP.gestores.codigoPorNombre(vur.departamento || (excel || {}).departamento, vur.municipio || (excel || {}).municipio);
-    // Sin código ni municipio, una matrícula del círculo de Barranquilla se intenta en su catastro
-    if (!dane && U.circuloDeMatricula(claves.matricula) === C.por_municipio["08001"].circulo) dane = "08001";
+    if (!dane && cel && cel.dane) dane = cel.dane;
+    // Sin código ni municipio, una matrícula del círculo de Barranquilla o de Ibagué se intenta en su catastro
+    if (!dane) for (const [cod, cfgM] of Object.entries(C.por_municipio))
+      if (cfgM.deducir_por_circulo && U.circuloDeMatricula(claves.matricula) === cfgM.circulo) { dane = cod; break; }
     const gestor = IP.gestores.porCodigo(dane) || {};
     const esIgac = /igac/i.test(gestor.Gestor || "");
     const fuentes = [];
@@ -489,13 +527,18 @@
       else if (!gestor.Gestor && /^05/.test(dane || "") && C.por_gestor && C.por_gestor["CATASTRO ANTIOQUIA"]) local = C.por_gestor["CATASTRO ANTIOQUIA"];
     }
     if (local) {
-      const fn = { bogota, barranquilla, medellin, capas, ckan, antioquia, cali }[local.conector];
-      const r = fn ? await protegido(() => fn(local, claves), local) : resultado("error", local, { mensaje: "Conector desconocido" });
+      const fn = { bogota, barranquilla, medellin, capas, ckan, antioquia, cali, catastroenlinea }[local.conector];
+      const r = fn ? await protegido(() => fn(local, claves, dane), local) : resultado("error", local, { mensaje: "Conector desconocido" });
       fuentes.push(r);
       if (U.tipoCodigo(r.datos.numero_predial) === "nacional30" && !claves.predial30) claves.predial30 = r.datos.numero_predial;
       if (U.tipoCodigo(r.datos.numero_predial_anterior) === "anterior20" && !claves.predial20) claves.predial20 = r.datos.numero_predial_anterior;
     }
-    if (!local && gestor.Gestor && !esIgac) {
+    // Resultado de Catastro en línea de un municipio que no está configurado (otro sitio de la plataforma)
+    if (cel && (!local || local.conector !== "catastroenlinea")) {
+      const cfgC = cfgCatastroEnLinea(cel);
+      fuentes.push(await protegido(() => catastroenlinea(cfgC, claves, cel.dane), cfgC));
+    }
+    if (!local && !cel && gestor.Gestor && !esIgac) {
       const visor = (C.visores_gestor || {})[dane] || "";
       fuentes.push(resultado("manual", { nombre: "Geoportal de " + gestor.Gestor, origen: "Gestor catastral",
         pagina: visor ? "Geoportal del gestor (sin servicio consultable)" : "El gestor no publica un servicio consultable", visor }, {

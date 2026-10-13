@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SCRIPTS = ["utils", "vur", "xlsx", "excel", "config", "arcgis", "gestores", "geoportales", "contraste", "confirmacion", "almacen", "investigar", "reporte", "ejemplo"];
+const SCRIPTS = ["utils", "vur", "xlsx", "excel", "config", "catastroenlinea", "arcgis", "gestores", "geoportales", "contraste", "confirmacion", "almacen", "investigar", "reporte", "ejemplo"];
 
 const llamadas = [];
 function respuesta(url) {
@@ -103,6 +103,7 @@ function respuesta(url) {
       { attributes: { mpio_cdpmp: "11001", dpto_cnmbr: "BOGOTÁ, D.C.", mpio_cnmbr: "BOGOTÁ, D.C.", Gestor: "UAECD" } },
       { attributes: { mpio_cdpmp: "08001", dpto_cnmbr: "ATLÁNTICO", mpio_cnmbr: "BARRANQUILLA", Gestor: "Distrito de Barranquilla" } },
       { attributes: { mpio_cdpmp: "08078", dpto_cnmbr: "ATLÁNTICO", mpio_cnmbr: "BARANOA", Gestor: "Igac" } },
+      { attributes: { mpio_cdpmp: "73001", dpto_cnmbr: "TOLIMA", mpio_cnmbr: "IBAGUÉ", Gestor: "Municipio de Ibagué" } },
     ]);
   return { error: { message: "ruta no simulada " + u.pathname } };
 }
@@ -261,6 +262,97 @@ const f9 = await IP.investigarMatricula("041-5555", { vur: vurBaranoa, excel: ex
 assert.equal(f9.confirmacion.veredicto, "confirmado", JSON.stringify(f9.confirmacion.pruebas));
 assert.match(f9.confirmacion.pruebas[0].texto, /mismo predio/);
 for (const f of [f1, f5, f6, f7, f8, f9]) console.log("CONF", f.matricula, f.confirmacion.veredicto, "|", f.confirmacion.pruebas.map((x) => x.resultado + ": " + x.texto).join(" || "));
+
+// --- Catastro en línea (Ibagué): el marcador corre en el sitio, trae los datos y vuelve con #cel=...
+// Datos ficticios con la misma forma que devuelve el sitio.
+const ALFA = { Npn: "0003000000210099000000000", CodigoORIP: "350", Matricula: "12345", Comuna: "0", Destino: "Agropecuario", Avaluo: 500000000,
+  AreaC: 802, AreaT: 8500, TipoCatastro: "Ley", Estrato: "00", Coopropiedad: 0.0, EsMatriz: false, ValorTerreno: 300000000, ValorConstruccion: 200000000,
+  Codigo_Homologado: "BZS0000PRUE", NUPRE: "", Direccion: [{ Direccion_Unida: "FINCA DE PRUEBA          " }],
+  Propietario: [{ Nombre1: "PROPIETARIO", Nombre2: "", Apellido1: "DE", Apellido2: "PRUEBA", RazonSocial: "", TipoDoc: "C", NumDoc: "1000001", Porc: 1.0 }],
+  Construccion: [{ NPisos: 2, Uso: "Residencial.Vivienda_Recreacional", Area: 728.51, NUnidad: "A", AnoConstruccion: 2005 },
+                 { NPisos: 1, Uso: "Anexo.Piscinas", Area: 73.61, NUnidad: "B", AnoConstruccion: 2006 }],
+  Zona: [{ ZF: 129, ZE: 9, AreaZona: 553.75 }, { ZF: 261, ZE: 9, AreaZona: 7946.25 }] };
+const pedidosHechos = [];
+let abierto = "";
+const sitioCel = {
+  location: { pathname: "/sig.aspx", origin: "http://ibaguemultiproposito.com.co", hostname: "ibaguemultiproposito.com.co", href: "" },
+  prompt: () => "73001 350-12345 350-777", alert: (m) => { throw new Error("alerta: " + m); },
+  fetch: async (url, init) => {
+    const cuerpo = JSON.parse(init.body);
+    pedidosHechos.push(url.split("/").pop() + " " + init.body);
+    assert.equal(init.method, "POST");
+    if (url === "http://ibaguemultiproposito.com.co/sig.aspx/BuscaMatricula") {
+      assert.deepEqual(Object.keys(cuerpo).join(), "CodDpto,CodMpio,CodigoORIP,Matricula");
+      assert.equal(cuerpo.CodDpto + cuerpo.CodMpio, "73001");
+      const d = cuerpo.Matricula === "12345" ? "<INICIO><Predio><NPN>73-001-00-03-00-00-0021-0099-0-00-00-0000</NPN><Matricula>350-12345</Matricula><Zona>RURAL</Zona><Dibujo>OK</Dibujo></Predio></INICIO>" : "";
+      return { ok: true, json: async () => ({ d }) };
+    }
+    if (url === "http://ibaguemultiproposito.com.co/sig.aspx/GetAlfaNumPredio2") {
+      assert.equal(cuerpo.Predio, "73-001-00-03-00-00-0021-0099-0-00-00-0000");
+      return { ok: true, json: async () => ({ d: JSON.stringify(ALFA) }) };
+    }
+    throw new Error("ruta no simulada " + url);
+  },
+};
+sitioCel.window = { open: (u) => { abierto = u; return {}; } };
+vm.createContext(sitioCel);
+const marcador = IP.cel.marcador("https://usuario.github.io/investigador-predios/");
+assert.ok(marcador.startsWith("javascript:"));
+await vm.runInContext(decodeURIComponent(marcador.slice("javascript:".length)), sitioCel);
+assert.equal(pedidosHechos.length, 3, pedidosHechos.join("\n"));
+assert.ok(abierto.startsWith("https://usuario.github.io/investigador-predios/#cel="));
+const llegados = IP.cel.desdeHash(abierto.slice(abierto.indexOf("#")));
+assert.equal(llegados.length, 2);
+assert.equal(llegados[0].matricula, "350-12345");
+assert.equal(llegados[0].predios[0].datos.numero_predial, "730010003000000210099000000000");
+assert.equal(llegados[1].predios.length, 0);
+for (const r of llegados) await IP.almacen.guardarCel(r);
+
+const fc1 = await IP.investigarMatricula("350-12345", {});
+const fcel = fc1.catastro.fuentes[0];
+assert.equal(fcel.fuente, "Catastro Ibagué – Catastro en línea");
+assert.equal(fcel.estado, "ok", fcel.mensaje);
+assert.equal(fc1.catastro.codigo_dane, "73001");
+assert.equal(fc1.catastro.datos.matricula_inmobiliaria, "350-12345");
+assert.equal(fc1.catastro.datos.area_terreno_m2, 8500);
+assert.equal(fc1.catastro.datos.avaluo, 500000000);
+assert.equal(fc1.catastro.datos.direccion, "FINCA DE PRUEBA");
+assert.equal(fc1.catastro.datos.zona_fisica, "129, 261");
+assert.equal(fc1.catastro.datos.propietarios_catastro, "PROPIETARIO DE PRUEBA (C 1000001)");
+assert.match(fc1.catastro.datos.construcciones, /Unidad A · Residencial: Vivienda Recreacional · 728,51 m² · 2 piso/);
+assert.equal(fc1.confirmacion.veredicto, "confirmado", JSON.stringify(fc1.confirmacion));
+// Con la cédula del Excel escrita con guiones, igual al NPN del catastro
+const confCel = IP.confirmarFMI({ matricula: "350-12345", registro: { cedula_catastral: "73-001-00-03-00-00-0021-0099-0-00-00-0000" }, vur: null, catastro: fc1.catastro });
+assert.equal(confCel.veredicto, "confirmado");
+assert.match(confCel.pruebas.map((x) => x.texto).join(" "), /Catastro Ibagué – Catastro en línea asocia la matrícula 350-12345 al predio 730010003000000210099000000000, que es la cédula catastral/);
+assert.equal(IP.confirmarFMI({ matricula: "350-12345", registro: { cedula_catastral: "730010003000000210088000000000" }, vur: null, catastro: fc1.catastro }).veredicto, "no_coincide");
+// Propietarios del VUR contra los del catastro
+const vurCel = { matricula_normalizada: "350-12345", propietarios: [{ nombre: "PROPIETARIO DE PRUEBA", documento: "1.000.001" }], propietarios_texto: "PROPIETARIO DE PRUEBA" };
+const filaProp = IP.contrastar(vurCel, null, fc1.catastro).filas.find((x) => x.campo === "Propietarios");
+assert.equal(filaProp.estado, "ok");
+assert.equal(filaProp.fuente_catastro, "Catastro Ibagué – Catastro en línea");
+vurCel.propietarios[0].documento = "999";
+assert.equal(IP.contrastar(vurCel, null, fc1.catastro).filas.find((x) => x.campo === "Propietarios").estado, "revisar");
+// La matrícula que el sitio no encontró
+const fc2 = await IP.investigarMatricula("350-777", {});
+assert.equal(fc2.catastro.fuentes[0].estado, "no_encontrado");
+// Matrícula de Ibagué que todavía no se ha traído: pide usar el marcador
+const fc3 = await IP.investigarMatricula("350-999", {});
+assert.equal(fc3.catastro.fuentes[0].estado, "pendiente");
+assert.equal(fc3.catastro.fuentes[0].cel_pedido, "73001 350-999");
+assert.match(fc3.confirmacion.recomendacion, /marcador/);
+assert.equal(IP.cel.pedido([{ dane: "73001", matricula: "350-1" }, { dane: "73001", matricula: "350-2" }, { dane: "76364", matricula: "370-3" }]), "73001 350-1 350-2\n76364 370-3");
+// Otro sitio de la plataforma (municipio sin configurar)
+await IP.almacen.guardarCel(IP.cel.registros({ tipo: "catastroenlinea", resultados: [{ matricula: "370-14114", dane: "76364", sitio: "https://catastroenlinea.com.co/sig.aspx",
+  busca: "<INICIO><Predio><NPN>76-364-00-01-00-00-0001-0001-0-00-00-0000</NPN><Matricula>370-14114</Matricula><Zona>RURAL</Zona></Predio></INICIO>",
+  predios: [{ npn: "76-364-00-01-00-00-0001-0001-0-00-00-0000", alfa: JSON.stringify({ CodigoORIP: "370", Matricula: "14114", AreaT: 100 }) }] }] })[0]);
+const fc4 = await IP.investigarMatricula("370-14114", {});
+const f4cel = fc4.catastro.fuentes.find((x) => x.fuente === "Catastro en línea – catastroenlinea.com.co");
+assert.equal(f4cel.estado, "ok");
+assert.equal(fc4.confirmacion.veredicto, "confirmado");
+const repCel = await IP.xlsx.leer(await IP.generarReporte([fc1, fc3], null).arrayBuffer());
+assert.ok(repCel.hojas.find((x) => x.nombre === "Catastro").filas[0].includes("propietarios_catastro"));
+console.log("CEL", fc1.confirmacion.titulo, "|", fcel.mensaje, "|", fc3.catastro.fuentes[0].mensaje);
 
 // Historial
 const h = await IP.almacen.historial();
